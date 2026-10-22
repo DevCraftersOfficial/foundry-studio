@@ -7,6 +7,8 @@ import { getPayload } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Media, User } from '@/payload-types'
 import { getPublicPostWhere } from '@/lib/publishing'
+import { calculateReadingTime } from '@/lib/reading-time'
+import { CategoryNav } from '@/components/editorial/CategoryNav'
 
 type PageProps = {
   params: Promise<{
@@ -90,7 +92,15 @@ export default async function CategoryPage({ params }: PageProps) {
 
   const category = categoryData.docs[0] as Category
 
-  // 2. Fetch all published posts in this category using canonical filter
+  // 2. Fetch all categories for navigation
+  const allCategoriesData = await payload.find({
+    collection: 'categories',
+    sort: 'name',
+    limit: 10,
+  })
+  const allCategories = allCategoriesData.docs as Category[]
+
+  // 3. Fetch all published posts in this category using canonical filter
   const postsData = await payload.find({
     collection: 'posts',
     where: {
@@ -109,71 +119,83 @@ export default async function CategoryPage({ params }: PageProps) {
   const posts = postsData.docs as Post[]
 
   return (
-    <div className="container" style={{ padding: '3rem 1.5rem 5rem 1.5rem' }}>
-      <header style={{ marginBottom: '3rem', borderBottom: '1px solid var(--text-primary)', paddingBottom: '1.5rem' }}>
-        <Link href="/" className="article-back-link">
-          &larr; Front Page
-        </Link>
-        <span className="category-badge" style={{ marginBottom: '1rem', display: 'inline-block' }}>
-          Section Archive
-        </span>
-        <h1 className="article-title" style={{ margin: '0.5rem 0' }}>{category.name}</h1>
-        {category.description && (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem', maxWidth: '65ch' }}>
-            {category.description}
-          </p>
-        )}
-      </header>
+    <div>
+      {/* Category Navigation Bar with current active section */}
+      <CategoryNav categories={allCategories} activeSlug={slug} />
 
-      {posts.length > 0 ? (
-        <div className="article-grid">
-          {posts.map((post) => {
-            const authorName =
-              typeof post.author === 'object' && post.author
-                ? (post.author as User).name
-                : 'Foundry Editorial'
-
-            return (
-              <article key={post.id} className="article-card">
-                {post.featuredImage && typeof post.featuredImage === 'object' && (
-                  <div className="article-card-image" style={{ position: 'relative' }}>
-                    <Image
-                      src={(post.featuredImage as Media).url || ''}
-                      alt={(post.featuredImage as Media).alt || post.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  </div>
-                )}
-                <div className="article-card-meta">
-                  <span className="category-badge">{category.name}</span>
-                  <time className="meta-time" dateTime={post.publishedAt || ''}>
-                    {formatDate(post.publishedAt)}
-                  </time>
-                </div>
-                <h2 className="article-card-title">
-                  <Link href={`/posts/${post.slug}`}>{post.title}</Link>
-                </h2>
-                {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
-                <div className="article-card-footer">
-                  <span>By {authorName}</span>
-                  <span>Read Story &rarr;</span>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <h2 className="empty-state-title">No Dispatches in {category.name}</h2>
-          <p className="empty-state-text">
-            There are currently no live dispatches under this section.
-          </p>
-          <Link href="/" className="empty-state-link">
-            Return to Front Page
+      <div className="container" style={{ padding: '3rem 1.5rem 5rem 1.5rem' }}>
+        <header style={{ marginBottom: '3rem', borderBottom: '1px solid var(--text-primary)', paddingBottom: '1.5rem' }}>
+          <Link href="/" className="article-back-link">
+            &larr; Front Page
           </Link>
-        </div>
-      )}
+          <span className="category-badge" style={{ marginBottom: '1rem', display: 'inline-block' }}>
+            Section Archive
+          </span>
+          <h1 className="article-title" style={{ margin: '0.5rem 0' }}>{category.name}</h1>
+          {category.description && (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem', maxWidth: '65ch' }}>
+              {category.description}
+            </p>
+          )}
+        </header>
+
+        {posts.length > 0 ? (
+          <div className="article-grid">
+            {posts.map((post) => {
+              const authorName =
+                typeof post.author === 'object' && post.author
+                  ? (post.author as User).name
+                  : 'Foundry Editorial'
+              const readingTime = calculateReadingTime(post.content)
+
+              return (
+                <article key={post.id} className="article-card">
+                  {post.featuredImage && typeof post.featuredImage === 'object' && (
+                    <div className="article-card-image" style={{ position: 'relative' }}>
+                      <Image
+                        src={(post.featuredImage as Media).url || ''}
+                        alt={(post.featuredImage as Media).alt || post.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    </div>
+                  )}
+                  <div className="article-card-meta">
+                    <span className="category-badge">{category.name}</span>
+                    <time className="meta-time" dateTime={post.publishedAt || ''}>
+                      {formatDate(post.publishedAt)}
+                    </time>
+                    <span
+                      className="reading-time-pill"
+                      aria-label={`Estimated reading time: ${readingTime.text}`}
+                    >
+                      {readingTime.text}
+                    </span>
+                  </div>
+                  <h2 className="article-card-title">
+                    <Link href={`/posts/${post.slug}`}>{post.title}</Link>
+                  </h2>
+                  {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
+                  <div className="article-card-footer">
+                    <span>By {authorName}</span>
+                    <span>Read Story &rarr;</span>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2 className="empty-state-title">No Dispatches in {category.name}</h2>
+            <p className="empty-state-text">
+              There are currently no live dispatches under this section.
+            </p>
+            <Link href="/" className="empty-state-link">
+              Return to Front Page
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

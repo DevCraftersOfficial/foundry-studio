@@ -36,6 +36,8 @@ function formatDate(dateStr?: string | null): string {
 }
 
 import { getPublicPostWhere } from '@/lib/publishing'
+import { calculateReadingTime } from '@/lib/reading-time'
+import { CategoryNav } from '@/components/editorial/CategoryNav'
 
 export default async function HomePage() {
   const payloadConfig = await config
@@ -64,24 +66,12 @@ export default async function HomePage() {
 
   const featuredPost = posts.length > 0 ? posts[0] : null
   const regularPosts = posts.length > 1 ? posts.slice(1) : []
+  const featuredReadingTime = featuredPost ? calculateReadingTime(featuredPost.content) : null
 
   return (
     <div>
-      {/* Category Navigation Bar */}
-      {categories.length > 0 && (
-        <nav className="nav-bar" aria-label="Sections">
-          <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '2rem' }}>
-            <Link href="/" className="nav-link active">
-              Front Page
-            </Link>
-            {categories.map((cat) => (
-              <Link key={cat.id} href={`/category/${cat.slug}`} className="nav-link">
-                {cat.name}
-              </Link>
-            ))}
-          </div>
-        </nav>
-      )}
+      {/* Category Navigation Bar with semantic active state */}
+      <CategoryNav categories={categories} activeSlug="frontpage" />
 
       <div className="container">
         {/* Featured Story */}
@@ -100,6 +90,14 @@ export default async function HomePage() {
                   <time className="meta-time" dateTime={featuredPost.publishedAt || ''}>
                     {formatDate(featuredPost.publishedAt)}
                   </time>
+                  {featuredReadingTime && (
+                    <span
+                      className="reading-time-pill"
+                      aria-label={`Estimated reading time: ${featuredReadingTime.text}`}
+                    >
+                      {featuredReadingTime.text}
+                    </span>
+                  )}
                 </div>
                 <h1 className="hero-title">
                   <Link href={`/posts/${featuredPost.slug}`}>{featuredPost.title}</Link>
@@ -166,6 +164,8 @@ export default async function HomePage() {
                     ? (post.author as User).name
                     : 'Foundry Editorial'
 
+                const readingTime = calculateReadingTime(post.content)
+
                 return (
                   <article key={post.id} className="article-card">
                     {post.featuredImage && typeof post.featuredImage === 'object' && (
@@ -183,6 +183,12 @@ export default async function HomePage() {
                       <time className="meta-time" dateTime={post.publishedAt || ''}>
                         {formatDate(post.publishedAt)}
                       </time>
+                      <span
+                        className="reading-time-pill"
+                        aria-label={`Estimated reading time: ${readingTime.text}`}
+                      >
+                        {readingTime.text}
+                      </span>
                     </div>
                     <h3 className="article-card-title">
                       <Link href={`/posts/${post.slug}`}>{post.title}</Link>

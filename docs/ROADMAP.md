@@ -111,6 +111,62 @@ This document outlines the phased development roadmap, milestone dependencies, m
 
 ---
 
+### Milestone FS-UI-001: DevCrafters Brand & Foundry Studio UI/UX Audit
+- **Status:** Complete (Discovery & Planning Accepted)
+- **Dependencies:** FS-006
+- **Objective:** Audit live DevCrafters brand deployment and existing Foundry Studio repository; produce concrete design system recommendations and phased UI/UX roadmap for endorsed product relationship.
+- **Measurable Acceptance Criteria:**
+  1. Full inspection of DevCrafters brand site (`https://dev.devcrafters-website.pages.dev/`) capturing palette, typography (`Manrope` + `JetBrains Mono`), layout conventions, and visual artifacts. (Verified)
+  2. Repository baseline audit establishing missing font assets, system fallbacks, and unbranded Payload Admin. (Verified)
+  3. Concrete design system proposals with verified contrast analysis and OFL-1.1 font licensing. (Verified)
+  4. 4-phase bounded implementation roadmap defined. (Verified)
+- **Review Gate:** CTO approval of Phase 1 implementation.
+
+---
+
+### Milestone FS-UI-002: Design Tokens, Typography & Brand Primitives (Phase 1)
+- **Status:** Complete & Ready for Review
+- **Dependencies:** FS-UI-001 sign-off
+- **Objective:** Implement zero-runtime self-hosted font architecture (`Newsreader`, `Manrope`, `JetBrains Mono`), update CSS design tokens, build accessible `BrandLockup` and `StatusBadge` primitives, and update living design system documentation.
+- **Measurable Acceptance Criteria:**
+  1. Build-time font bundling via `next/font/google` producing local `.woff2` files with 0 external runtime requests. (Verified)
+  2. CSS variables updated to warm paper canvas (`#FAF8F5`), obsidian ink (`#0F172A`), DevCrafters orange (`#EA580C`, 3.56:1 for UI non-text elements), and accessible text orange (`#C2410C`, 4.89:1 for text). (Verified)
+  3. Reusable accessible `BrandLockup` component supporting `masthead`, `footer`, `compact`, and `badge` variants with pure SVG mark. (Verified)
+  4. Reusable accessible `StatusBadge` component supporting all 5 publishing lifecycle states (`draft`, `in_review`, `scheduled`, `published`, `archived`) with verified >= 6.37:1 contrast. (Verified)
+  5. 110 automated tests passing across 7 test suites (`npm run test:int`), `npx tsc --noEmit` clean, `npm run lint` clean, production build passing, and live browser audit verified. (Verified)
+- **Review Gate:** CTO sign-off on Phase 1 primitives before authorizing Phase 2 (Public Reader Experience & Article Polish).
+
+---
+
+### Milestone FS-UI-003: Public Reader Experience & Article Template Polish (Phase 2)
+- **Status:** Complete & Ready for Review
+- **Dependencies:** FS-UI-002
+- **Objective:** Polish front-page hero hierarchy, active category filter pill styling, article template typography (drop caps, reading time), and category-filtered related stories.
+- **Measurable Acceptance Criteria:**
+  1. Accessible `CategoryNav` component with explicit `aria-current="page"` and high-contrast pill styling (`#0F172A` / `#FAFAFA`). (Verified)
+  2. Deterministic reading time utility (`calculateReadingTime`) based on 200 WPM with recursive Lexical AST support and empty safety. (Verified)
+  3. Related stories section dynamically querying up to 3 published articles in matching categories, strictly isolated via `getPublicPostWhere(now)` and `{ id: { not_equals: post.id } }`. (Verified)
+  4. Restrained editorial refinements: print drop cap on opening paragraph, 3px DevCrafters orange border on standfirst, WCAG-compliant blockquote styling. (Verified)
+  5. 116 automated integration tests passing across 8 test files (`npm run test:int`), `npx tsc --noEmit` clean, `npm run lint` clean, standalone Turbopack build passing, and live browser audit verified. (Verified)
+- **Review Gate:** CTO sign-off on Phase 2 before authorizing Phase 3 (Editorial Workspace & Admin Login Customization).
+
+---
+
+### Milestone FS-UI-004: Editorial Workspace & Admin Login Customization (Phase 3)
+- **Status:** Planned
+- **Dependencies:** FS-UI-003
+- **Objective:** Brand Payload CMS administrative login with DevCrafters endorsed identity and customize studio navigation header.
+
+---
+
+### Milestone FS-UI-005: Accessibility & Visual Regression Gating (Phase 4)
+- **Status:** Planned
+- **Dependencies:** FS-UI-004
+- **Objective:** Complete automated WCAG 2.2 AA audit across responsive breakpoints and keyboard navigation flows.
+
+
+---
+
 ## 3. Explicitly Deferred Capabilities (Post-MVP / SaaS Roadmap)
 
 The following capabilities are out of scope for the MVP and explicitly deferred to the SaaS transformation phase:

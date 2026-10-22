@@ -4,12 +4,13 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { draftMode, headers } from 'next/headers'
 import type { Metadata } from 'next'
-import { getPayload } from 'payload'
+import { getPayload, type Where } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Tag, Media, User } from '@/payload-types'
 import { RichText } from '@/components/editorial/RichText'
 import { getSiteUrl } from '@/lib/site-url'
 import { getPublicPostWhere, isPostPubliclyEligible } from '@/lib/publishing'
+import { calculateReadingTime } from '@/lib/reading-time'
 
 type PageProps = {
   params: Promise<{
@@ -194,6 +195,44 @@ export default async function PostDetailPage({ params }: PageProps) {
     notFound()
   }
 
+  const readingTime = calculateReadingTime(post.content)
+
+  // Fetch up to 3 related published stories in the same categories
+  const payloadConfig = await config
+  const payload = await getPayload({ config: payloadConfig })
+  const now = new Date().toISOString()
+
+  const categoryIds = (post.categories || [])
+    .map((cat) => (typeof cat === 'object' && cat !== null ? cat.id : cat))
+    .filter((id): id is number => typeof id === 'number')
+
+  let relatedPosts: Post[] = []
+  if (categoryIds.length > 0) {
+    const categoryWhere: Where =
+      categoryIds.length === 1
+        ? { categories: { contains: categoryIds[0] } }
+        : { or: categoryIds.map((id) => ({ categories: { contains: id } })) }
+
+    const relatedData = await payload.find({
+      collection: 'posts',
+      where: {
+        and: [
+          getPublicPostWhere(now),
+          {
+            id: {
+              not_equals: post.id,
+            },
+          },
+          categoryWhere,
+        ],
+      },
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 3,
+    })
+    relatedPosts = relatedData.docs as Post[]
+  }
+
   const category =
     post.categories && post.categories.length > 0 && typeof post.categories[0] === 'object'
       ? (post.categories[0] as Category).name
@@ -294,8 +333,15 @@ export default async function PostDetailPage({ params }: PageProps) {
 
             <div className="article-meta-row">
               <span>By <strong>{authorName}</strong></span>
-              <span>&bull;</span>
+              <span aria-hidden="true">&bull;</span>
               <time dateTime={post.publishedAt || ''}>{formatDate(post.publishedAt)}</time>
+              <span aria-hidden="true">&bull;</span>
+              <span
+                className="reading-time-badge"
+                aria-label={`Estimated reading time: ${readingTime.text}`}
+              >
+                {readingTime.text}
+              </span>
             </div>
           </header>
 
@@ -332,6 +378,66 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </span>
               ))}
             </footer>
+          )}
+
+          {/* Related Stories Section */}
+          {relatedPosts.length > 0 && (
+            <section className="related-stories-section" aria-label="Related Stories">
+              <div className="section-header">
+                <div>
+                  <div className="section-eyebrow">More in this section</div>
+                  <h2 className="section-title">Related Dispatches</h2>
+                </div>
+              </div>
+              <div className="article-grid">
+                {relatedPosts.map((relPost) => {
+                  const relCategory =
+                    relPost.categories && relPost.categories.length > 0 && typeof relPost.categories[0] === 'object'
+                      ? (relPost.categories[0] as Category).name
+                      : null
+                  const relAuthorName =
+                    typeof relPost.author === 'object' && relPost.author
+                      ? (relPost.author as User).name
+                      : 'Foundry Editorial'
+                  const relReadingTime = calculateReadingTime(relPost.content)
+
+                  return (
+                    <article key={relPost.id} className="article-card">
+                      {relPost.featuredImage && typeof relPost.featuredImage === 'object' && (
+                        <div className="article-card-image" style={{ position: 'relative' }}>
+                          <Image
+                            src={(relPost.featuredImage as Media).url || ''}
+                            alt={(relPost.featuredImage as Media).alt || relPost.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                          />
+                        </div>
+                      )}
+                      <div className="article-card-meta">
+                        {relCategory && <span className="category-badge">{relCategory}</span>}
+                        <time className="meta-time" dateTime={relPost.publishedAt || ''}>
+                          {formatDate(relPost.publishedAt)}
+                        </time>
+                        <span
+                          className="reading-time-pill"
+                          aria-label={`Estimated reading time: ${relReadingTime.text}`}
+                        >
+                          {relReadingTime.text}
+                        </span>
+                      </div>
+                      <h3 className="article-card-title">
+                        <Link href={`/posts/${relPost.slug}`}>{relPost.title}</Link>
+                      </h3>
+                      {relPost.excerpt && <p className="article-card-excerpt">{relPost.excerpt}</p>}
+                      <div className="article-card-footer">
+                        <span>By {relAuthorName}</span>
+                        <span>Read Story &rarr;</span>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </section>
           )}
         </div>
       </article>
