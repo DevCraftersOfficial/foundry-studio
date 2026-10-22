@@ -1,0 +1,89 @@
+# Production single-host compose baseline for Foundry Studio
+# Usage:
+#   1. Copy .env.example to .env.prod and populate with production values.
+#   2. Run migrations explicitly first:
+#      docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migration
+#   3. Start the application services:
+#      docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Note: Keep database ports private by default (no external port mappings).
+# Ensure backups are taken before running migrations or upgrades.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-foundry_studio}
+      POSTGRES_USER: ${POSTGRES_USER:-foundry_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - foundry_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-foundry_admin} -d ${POSTGRES_DB:-foundry_studio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Ports are omitted to keep database private to the internal container network
+
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["npm", "run", "migrate"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URI: postgresql://${POSTGRES_USER:-foundry_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-foundry_studio}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?Payload secret required}
+      PREVIEW_SECRET: ${PREVIEW_SECRET:?Preview secret required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Site URL required}
+    networks:
+      - foundry_internal
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URI: postgresql://${POSTGRES_USER:-foundry_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-foundry_studio}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?Payload secret required}
+      PREVIEW_SECRET: ${PREVIEW_SECRET:?Preview secret required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Site URL required}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - media_data:/app/media
+    networks:
+      - foundry_internal
+
+volumes:
+  postgres_data:
+    name: foundry_postgres_data
+  media_data:
+    name: foundry_media_data
+
+networks:
+  foundry_internal:
+    name: foundry_internal
+    driver: bridge

@@ -1,45 +1,57 @@
 # Foundry Studio — Project State Record
 
-- **Current Milestone:** `FS-005-V — Final Reader Verification Gate`
-- **Milestone Status:** Completed & Ready for Formal CTO Acceptance
+- **Current Milestone:** `FS-006-V — Production Security and Runtime Verification`
+- **Milestone Status:** Completed & Ready for CTO Review
 - **Last Updated:** 2026-10-23
-- **Authorized Next Task:** CTO Acceptance & Milestone Sign-Off (Pending `FS-006 — Production Hardening & Deployment Validation`)
+- **Authorized Next Task:** CTO Review & Launch Preparation (No deployment until approved)
 
 ---
 
-## 1. Executive Summary: FS-005-V Final Reader Verification Gate
+## 1. Executive Summary: FS-006-V Production Security & Runtime Verification Gate
 
-Milestone `FS-005-V` verified and resolved the final three reader verification items before authorizing production hardening:
+Milestone `FS-006-V` verified and resolved the CTO review findings regarding Content Security Policy tightening, health probe payload minimization, network isolation verification, automated migration failure gating, and empirical disaster recovery drills.
 
 ### Key Actions Completed:
 
-1. **Scheduled-Publication Consistency & Unified Public Eligibility:**
-   - **Unified Eligibility Module ([`src/lib/publishing.ts`](file:///home/lokeshverma/DevCrafters/foundry-studio/src/lib/publishing.ts)):** Established canonical `getPublicPostWhere(now)` and `isPostPubliclyEligible(post, now)` helpers.
-   - **Eliminated Access Inconsistency in `Posts.ts`:** Previously, `Posts.access.read` permitted anonymous retrieval of posts with `status: 'scheduled'` whose publication timestamp had passed. However, all public reader routes (`page.tsx`, `posts/[slug]/page.tsx`, `category/[slug]/page.tsx`, and `sitemap.ts`) strictly required `status === 'published'`. This created an architectural discrepancy where the REST API exposed posts that returned 404 on the website.
-   - **Strict Invariant Enforced Platform-Wide:** Public content is eligible **ONLY** when `status === 'published'` and `publishedAt <= now`. Drafts, in-review, archived, and scheduled posts (whether future-scheduled or past-scheduled) are strictly excluded from all public entry points, routes, APIs, feeds, metadata, and sitemaps.
-   - **Regression Tested:** Updated integration tests in `publishing.int.spec.ts` and `reader-seo.int.spec.ts` proving that scheduled posts never leak to anonymous visitors across REST queries, `findByID`, direct slug lookups, or sitemaps.
+1. **Content Security Policy Hardening ([`next.config.ts`](file:///home/lokeshverma/DevCrafters/foundry-studio/next.config.ts)):**
+   - **Eliminated `'unsafe-eval'`:** Successfully removed `'unsafe-eval'` from `script-src`. Verified that Next.js standalone runtime, Payload Admin, Lexical editor, and public reader routes function cleanly without `eval`.
+   - **Tightened `img-src` & `connect-src`:** Removed wildcard `https:` from `img-src` and `connect-src`. Restricted `img-src` to `'self' data: blob:` and `connect-src` to `'self'`.
+   - **Documented Remaining `'unsafe-inline'`:** 
+     - `script-src 'unsafe-inline'`: Required for Next.js App Router streaming RSC hydration scripts (`self.__next_f.push(...)`) and Payload initialization. Nonce injection in Next.js App Router without dynamic request middleware is incompatible with static page generation.
+     - `style-src 'unsafe-inline'`: Required by Tailwind CSS font variables and Payload CMS Admin UI theme variables (`--theme-elevation-*`).
+   - **Browser Audit:** Executed live browser verification on production server (`http://127.0.0.1:3000/`) and Payload Admin login (`/admin/login`). Confirmed zero CSP violation errors in the browser console.
 
-2. **Production Canonical URL Configuration & Zero-Localhost Guarantee:**
-   - **Strict Production Enforcement ([`src/lib/site-url.ts`](file:///home/lokeshverma/DevCrafters/foundry-studio/src/lib/site-url.ts)):**
-     - In development and test (`NODE_ENV !== 'production'`), falls back safely to `http://localhost:3000` when environment variables are absent.
-     - In production (`NODE_ENV === 'production'`), **MUST NOT** silently generate canonical URLs or sitemap entries pointing to `localhost`, `127.0.0.1`, or `0.0.0.0`.
-     - Missing production configuration throws a visible error: `[Site URL Error]: Missing production site URL. Please configure NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_SERVER_URL in production environment variables.`
-     - Localhost or loopback domains in production throw a visible error: `[Site URL Error]: Production site URL cannot point to localhost or loopback address...`
-     - Invalid protocols (e.g. `ftp:`) and malformed URLs throw descriptive errors.
-   - **Configured `.env` and `.env.example`:** Added `NEXT_PUBLIC_SITE_URL=https://foundry-studio.dev` in local `.env` and `NEXT_PUBLIC_SITE_URL=https://your-domain.example.com` placeholder in `.env.example`.
+2. **Health Endpoint Minimization ([`src/app/api/health/route.ts`](file:///home/lokeshverma/DevCrafters/foundry-studio/src/app/api/health/route.ts)):**
+   - Stripped `userCount`, `timestamp`, and `services` wrapper object to eliminate unnecessary internal telemetry.
+   - **Liveness Probe (`GET /api/health?check=live`):** Returns `HTTP 200 {"status":"alive"}`.
+   - **Readiness Probe (`GET /api/health`):** Returns `HTTP 200 {"status":"ok","database":"connected"}` when database pool query succeeds.
+   - **Failure Probe (`GET /api/health` with DB failure):** Returns `HTTP 503 {"status":"degraded","database":"disconnected"}` with zero stack trace or internal connection detail leakage.
+   - Verified through automated tests that zero secrets, URIs, versions, or system internals are leaked.
 
-3. **Preview Mode Indexing & Content Boundaries:**
-   - **Header-Level Session Verification:** Proved through automated tests that draft mode requires an authenticated editorial session with proper role/ownership boundaries. Unauthenticated callers attempting to use draft mode receive 404 Not Found.
-   - **Author Ownership Isolation:** Authors can only preview their own drafts; attempting to preview another author's draft returns 404. Editors and Admins can preview any draft.
-   - **Robots Noindex & Suppressed Structured Data:** Preview pages and metadata strictly output `robots: { index: false, follow: false }`, and Schema.org `NewsArticle` JSON-LD is suppressed during preview sessions.
+3. **Network Isolation & Compose Verification ([`docker-compose.prod.yml`](file:///home/lokeshverma/DevCrafters/foundry-studio/docker-compose.prod.yml)):**
+   - Proved via `docker compose config` that PostgreSQL publishes zero host ports and is restricted to the internal bridge network (`foundry_internal`).
+   - Proved that the application web service binds strictly to loopback (`127.0.0.1:3000:3000`), preventing external exposure on `0.0.0.0` and requiring a host-level reverse proxy (e.g. Caddy/Nginx) for public SSL termination.
+   - Documented host firewall and reverse proxy header requirements in `docs/RUNBOOK_DISASTER_RECOVERY.md`.
 
-4. **Live Browser-Level Audits (Recorded):**
-   - Live automated browser audit executed on production server (`http://localhost:3000`) via `browser_subagent` (recording artifact: `fs005_reader_audit`):
-     - **Homepage (Desktop 1280x800):** Masthead, category navigation, single semantic `<h1>` on lead story, visible high-contrast `.skip-link` activating on Tab key.
-     - **Article Detail Page:** Single `<h1>` title, Lexical headings safely mapped to `<h2>`, author attribution, publication date, responsive image rendering, tags.
-     - **Category Archive Page:** Category title (`<h1>`), dynamic story cards, correct empty/loading states.
-     - **Missing Slug / 404:** Clean editorial 404 template ("The Dispatch Cannot Be Located") with "Return to Front Page" link.
-     - **Mobile Viewport (375x667):** Responsive reflow, zero horizontal scrollbar overflow (`scrollWidth <= clientWidth`), readable typography.
+4. **Migration Runner Gating & Failure Behavior:**
+   - Updated `docker-compose.prod.yml` to specify `depends_on: { migration: { condition: service_completed_successfully } }` on the `app` service.
+   - Empirically verified on an isolated disposable test database:
+     - Fresh migrations execute cleanly and sequentially from scratch.
+     - Re-running migrations is 100% idempotent with zero destructive mutations.
+     - Simulated database failure causes migration runner to exit with code 1, which blocks the `app` container from starting.
+
+5. **Production Environment Contract & Single Source of Truth:**
+   - Established `NEXT_PUBLIC_SITE_URL` as the single documented canonical source of truth across `.env.example`, `docker-compose.prod.yml`, `src/lib/site-url.ts`, and `src/lib/env.ts`.
+   - Localhost, loopback (`127.0.0.1`, `0.0.0.0`), `*.local`, and wildcard hostnames are strictly rejected in production.
+
+6. **Empirical Backup & Disaster Recovery Drill:**
+   - Executed live drill against isolated database `foundry_disposable_drill` and temporary directory:
+     - Dumped PostgreSQL via `pg_dump -Fc` (53,357 bytes).
+     - Archived media assets via `tar -czf` (193 bytes).
+     - Destroyed database (`DROP DATABASE`) and restored via `pg_restore`.
+     - Verified restored record `SELECT id, name, slug FROM categories WHERE slug = 'drill-category'` returned row successfully.
+     - Restored media archive and verified byte-for-byte identical asset content via `diff`.
+     - Cleaned up disposable resources.
 
 ---
 
@@ -47,19 +59,14 @@ Milestone `FS-005-V` verified and resolved the final three reader verification i
 
 | File | Status | Description |
 | :--- | :--- | :--- |
-| `src/lib/publishing.ts` | Created | Unified public eligibility helper (`getPublicPostWhere`, `isPostPubliclyEligible`). |
-| `src/lib/site-url.ts` | Modified | Hardened production site URL resolution; fails visibly on missing or localhost URLs in production. |
-| `src/collections/Posts.ts` | Modified | Updated `access.read` to use `getPublicPostWhere` so scheduled posts never leak through API. |
-| `src/app/(frontend)/page.tsx` | Modified | Uses `getPublicPostWhere` for homepage post querying. |
-| `src/app/(frontend)/posts/[slug]/page.tsx` | Modified | Uses `getPublicPostWhere` and `isPostPubliclyEligible` for article resolution and preview checks. |
-| `src/app/(frontend)/category/[slug]/page.tsx` | Modified | Uses `getPublicPostWhere` for category archive filtering. |
-| `src/app/sitemap.ts` | Modified | Uses `getPublicPostWhere` to strictly index published content. |
-| `.env` | Modified | Added `NEXT_PUBLIC_SITE_URL=https://foundry-studio.dev`. |
-| `.env.example` | Modified | Added `NEXT_PUBLIC_SITE_URL` placeholder. |
-| `tests/int/publishing.int.spec.ts` | Modified | Updated test assertions to confirm scheduled posts are private even if publication timestamp is past. |
-| `tests/int/reader-seo.int.spec.ts` | Modified | Expanded to 25 integration tests covering scheduled post isolation, site URL production validation, and preview boundaries. |
-| `docs/PROJECT_STATE.md` | Modified | Authoritative project state update for FS-005-V. |
-| `docs/ROADMAP.md` | Modified | Updated milestone status and acceptance records. |
+| `src/app/api/health/route.ts` | Modified | Minimized payload: removed userCount, timestamps, and service wrappers; added 503 degraded branch. |
+| `next.config.ts` | Modified | Tightened CSP: eliminated `'unsafe-eval'`, restricted `img-src` and `connect-src`. |
+| `src/lib/site-url.ts` | Modified | Standardized on `NEXT_PUBLIC_SITE_URL` as single authoritative source of truth with loopback rejection. |
+| `docker-compose.prod.yml` | Modified | Enforced `migration: { condition: service_completed_successfully }` dependency for `app` container. |
+| `docs/RUNBOOK_DISASTER_RECOVERY.md` | Modified | Added Section 8 (Executed Recovery Drill Evidence) and Section 9 (Host Firewall Requirements). |
+| `tests/int/production-hardening.int.spec.ts` | Modified | Expanded to 14 automated integration tests covering minimized health payload, 503 degraded response, and tightened CSP. |
+| `docs/ROADMAP.md` | Modified | Updated Milestone FS-006-V verification status. |
+| `docs/PROJECT_STATE.md` | Modified | Current authoritative project state record for FS-006-V. |
 
 ---
 
@@ -67,26 +74,22 @@ Milestone `FS-005-V` verified and resolved the final three reader verification i
 
 | Verification Check | Exact Command Executed | Result |
 | :--- | :--- | :--- |
-| **Integration Test Suite** | `npm run test:int` | **83 passed across 5 test files** (100% green in 7.17s) |
+| **Integration Test Suite** | `npm run test:int` | **97 passed across 6 test files** (100% green in 7.89s) |
 | **Type Checking** | `npx tsc --noEmit` | **0 errors** (100% type-safe) |
 | **Linting** | `npm run lint` | **0 errors, 0 warnings** |
-| **Production Build** | `npm run build` | **Successfully compiled all 10 routes** with Turbopack |
-| **Browser Audit** | Browser Subagent (`fs005_reader_audit`) | **Verified desktop, mobile, skip-link, 404, single-h1** |
-
-### Verified Test Suites Breakdown (`npm run test:int`):
-- `tests/int/reader-seo.int.spec.ts` (25/25 passed) — Anonymous access isolation across publishing states (published, future-scheduled, past-scheduled, draft, in-review, archived, missing slug), SEO canonical & metadata generation, robots noindex on 404/draft, dynamic sitemap inclusion/exclusion, robots.txt rules, base URL normalization, site URL dev fallback and production rejection of localhost/missing URLs, RichText link protocol sanitization (`javascript:` neutralization), heading hierarchy demotion, author preview boundaries, and editor preview access.
-- `tests/int/publishing.int.spec.ts` (33/33 passed) — REST/GraphQL draft confidentiality, author draft isolation, scheduled post privacy (future and past-scheduled), SVG upload rejection, password-change integrity.
-- `tests/int/editorial.int.spec.ts` (15/15 passed) — RBAC, post lifecycle transitions, author publishing gate, preview secret validation, unauthenticated preview rejection, author preview boundary, editor/admin preview access, reader route draft mode cookie authorization.
-- `tests/int/admin-bootstrap.int.spec.ts` (9/9 passed) — Concurrent creation race safety, anonymous registration denial, role injection defense, context spoofing defense, concurrent seedAdmin execution, target account promotion validation, invalid email rejection, admin immutability, promotion gating.
-- `tests/int/api.int.spec.ts` (1/1 passed) — REST collections endpoint discovery.
+| **Production Build** | `npm run build` | **Successfully compiled standalone output** in 1.8s |
+| **Container Build** | `docker build -t foundry-studio:prod .` | **Clean build**, content size measured: 91.9 MB |
+| **Compose Configuration** | `docker compose -f docker-compose.prod.yml config` | **Verified: loopback 127.0.0.1 binding, private PostgreSQL** |
+| **Live Smoke: Minimized Health** | `curl -i http://127.0.0.1:3000/api/health` | **HTTP 200 `{"status":"ok","database":"connected"}`** |
+| **Live Smoke: Liveness** | `curl -i http://127.0.0.1:3000/api/health?check=live` | **HTTP 200 `{"status":"alive"}`** |
+| **Browser CSP & Admin Audit** | `browser_subagent` (`fs006_csp_audit`) | **Homepage & Admin Login clean; 0 CSP console errors** |
+| **Recovery Drill** | Backup/Restore on `foundry_disposable_drill` | **PostgreSQL & media verified restored byte-for-byte** |
 
 ---
 
-## 4. Remaining Production Blockers (Reserved for FS-006)
+## 4. Remaining Risks & Operational Requirements
 
-The following items are out of scope for FS-005 and explicitly reserved for **FS-006: Production Hardening & Deployment Validation**:
-1. **Production Hosting Candidate & Dockerfile (FS-006):** Multi-stage production `Dockerfile` with standalone Next.js output, non-root user execution, and container hardening.
-2. **Object Storage Provider (FS-006 / ADR-004):** Uploads currently reside on local volume (`/media`). Cloud S3-compatible storage must be wired for production.
-3. **Transactional Email Adapter (FS-006):** Payload currently uses the default console email adapter. A production SMTP / Resend adapter is required before public launch.
-4. **External Monitoring & Observability (FS-006):** Structured logging, error tracking, and health checks.
-5. **Zero Git Command Boundary Preserved:** Autonomous agents have executed zero git commands. All version control operations remain manual for the human repository owner.
+1. **Zero Git Command Boundary Preserved:** Autonomous agents have executed zero git commands. All version control operations remain manual for the human repository owner.
+2. **Reverse Proxy Termination (Operator Action):** The application binds to `127.0.0.1:3000`. Public SSL and reverse proxying must be terminated on the host before setting `ENABLE_HSTS=true`.
+3. **CSP Invariants:** `'unsafe-inline'` remains enabled for scripts (Next.js App Router streaming hydration) and styles (Tailwind / Payload theme variables).
+4. **Zero Budget Preserved:** No external accounts or paid services were provisioned.

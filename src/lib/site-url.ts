@@ -9,6 +9,7 @@
  */
 export function getSiteUrl(): string {
   const isProduction = process.env.NODE_ENV === 'production'
+  // NEXT_PUBLIC_SITE_URL is the single authoritative source of truth for site URL
   const rawUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_SERVER_URL ||
@@ -17,7 +18,7 @@ export function getSiteUrl(): string {
   if (!rawUrl || !rawUrl.trim()) {
     if (isProduction) {
       throw new Error(
-        '[Site URL Error]: Missing production site URL. Please configure NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_SERVER_URL in production environment variables.',
+        '[Site URL Error]: Missing production site URL. Please configure NEXT_PUBLIC_SITE_URL in production environment variables.',
       )
     }
     return 'http://localhost:3000'
@@ -35,7 +36,13 @@ export function getSiteUrl(): string {
 
     if (isProduction) {
       const hostname = parsed.hostname.toLowerCase()
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '0.0.0.0' ||
+        hostname === '*' ||
+        hostname.endsWith('.local')
+      ) {
         throw new Error(
           `[Site URL Error]: Production site URL cannot point to localhost or loopback address (${hostname}). Please configure a valid production domain.`,
         )

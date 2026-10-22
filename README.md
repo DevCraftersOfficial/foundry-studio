@@ -127,9 +127,40 @@ Upon first visiting `/admin`, follow the on-screen prompt to create the initial 
 |---|---|---|
 | `npx tsc --noEmit` | TypeScript type-check | 0 errors |
 | `npm run lint` | ESLint checks | 0 errors, 0 warnings |
-| `npm run test:int` | Vitest integration tests (database/ORM) | All tests pass |
-| `npm run build` | Next.js production build | Successful static and dynamic compilation |
-| `npm run start` | Start production server | Serves optimized build |
+| `npm run test:int` | Vitest integration tests (database/ORM/security) | All 97 tests pass |
+| `npm run build` | Next.js standalone production build | Successful compilation |
+| `docker build -t foundry-studio:prod .` | Multi-stage Node 22 Alpine container | Clean build, non-root user (UID 1001), 91.9 MB content size |
+
+---
+
+## 8. Production Operations & Hardened Container Deployment
+
+Foundry Studio includes a single-host, production-hardened baseline in `docker-compose.prod.yml`:
+
+### 8.1. Required Production Environment Variables
+- `DATABASE_URI`: PostgreSQL connection string (postgresql://...).
+- `PAYLOAD_SECRET`: Cryptographic secret for session cookies (minimum 32 characters).
+- `PREVIEW_SECRET`: Secret token securing editorial draft previews (minimum 16 characters).
+- `NEXT_PUBLIC_SITE_URL`: Canonical public site URL (must use http/https; localhost, loopback, or wildcard domains are strictly rejected in production).
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_ADDRESS`, `SMTP_FROM_NAME`: Optional email configuration. In production, unconfigured email delivery visibly fails rather than pretending delivery succeeded.
+- `ENABLE_HSTS`: Set to `'true'` only on deployments with guaranteed HTTPS.
+
+### 8.2. Pre-Deployment Single-Run Migration
+Never run migrations automatically across multiple web replicas. Run the migration service once before starting the app:
+```bash
+docker compose -f docker-compose.prod.yml run --rm migration
+```
+
+### 8.3. Start Production Stack
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### 8.4. Health Endpoints
+- **Liveness probe:** `GET /api/health?check=live` (confirms Node process responds).
+- **Readiness probe:** `GET /api/health` (verifies database pool connectivity). Zero secrets, connection strings, or system versions are exposed.
+
+For coordinated PostgreSQL and media backups, restore procedures, and rollback rules, consult the [Operations & Disaster Recovery Runbook](file:///home/lokeshverma/DevCrafters/foundry-studio/docs/RUNBOOK_DISASTER_RECOVERY.md).
 
 ---
 

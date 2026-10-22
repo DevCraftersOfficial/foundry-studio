@@ -5,6 +5,8 @@ import { getSiteUrl } from '@/lib/site-url'
 import { getPublicPostWhere } from '@/lib/publishing'
 import type { Post, Category } from '@/payload-types'
 
+export const dynamic = 'force-dynamic'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getSiteUrl()
   const payloadConfig = await config

@@ -1,7 +1,7 @@
 # ADR-0003: Production Deployment Strategy
 
-- **Status:** Proposed / Under Evaluation (Production Hosting Undecided)
-- **Date:** 2026-10-22
+- **Status:** Accepted — Single-Host Container Baseline Validated
+- **Date:** 2026-10-22 (Updated: 2026-10-23)
 - **Authors:** DevCrafters Architecture Team
 - **Decision Owner:** CTO / Tech Lead
 
@@ -11,19 +11,20 @@
 
 Foundry Studio requires a production hosting and deployment strategy that meets the following mandatory criteria:
 - **₹0 Initial Operating Cost:** The platform must be deployable and testable on free-tier services, open-source infrastructure, or DevCrafters-owned shared test infrastructure without incurring recurring monthly fees.
-- **Node.js + PostgreSQL Compatibility:** Support for Next.js App Router full-stack runtime (Node.js 20+) and PostgreSQL persistence.
-- **Asset / Media Upload Handling:** Ability to persist editorial image and media uploads reliably.
+- **Node.js + PostgreSQL Compatibility:** Support for Next.js App Router full-stack runtime (Node.js 22 Alpine) and PostgreSQL persistence.
+- **Asset / Media Upload Handling:** Ability to persist editorial image and media uploads reliably on persistent volumes.
 - **Client Extensibility:** Reusable deployment model for client deployments with minimal re-engineering.
 
 ---
 
 ## 2. Decision
 
-**Production hosting remains explicitly UNDECIDED at this stage.**
-
-We establish a **deployment evaluation framework** to assess production candidates during early development milestones. We mandate that the application be built strictly as an environment-agnostic, container-ready application (via standard Next.js standalone output and standard PostgreSQL connection strings), ensuring that no code is tied to a specific vendor-proprietary runtime.
-
-Final production hosting selection will be made based on hands-on benchmarking during Milestone FS-006 (Deployment Validation & Production Hardening) and requires explicit CTO approval.
+We establish and accept the **Single-Host Hardened Container Baseline (`docker-compose.prod.yml`)** as the authorized deployment model for Foundry Studio:
+1. **Multi-Stage Node 22 Alpine Container:** Next.js standalone output with unprivileged runtime execution (`USER nextjs`, UID 1001). Measured image content size: 91.9 MB (disk usage: 363 MB).
+2. **Persistent Volumes:** Named volumes for PostgreSQL (`foundry_postgres_data`) and local media uploads (`foundry_media_data` mounted at `/app/media`).
+3. **Explicit Single-Run Migration Service:** Database migrations (`npm run migrate`) run as an isolated one-shot container before application traffic starts, avoiding concurrent migration conflicts.
+4. **Zero-Leak Health Probes:** Built-in container health check querying `/api/health?check=live` without exposing internal credentials or telemetry.
+5. **Security Headers Baseline:** Enforced CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and conditional HSTS.
 
 ---
 

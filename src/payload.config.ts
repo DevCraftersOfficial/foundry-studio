@@ -11,9 +11,16 @@ import { Posts } from './collections/Posts'
 import { Categories } from './collections/Categories'
 import { Tags } from './collections/Tags'
 import { migrations } from './migrations'
+import { validateEnv } from './lib/env'
+import { getEmailAdapter } from './lib/email'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+
+// Fail fast in production runtime if required configuration is missing or insecure
+if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PHASE) {
+  validateEnv({ throwOnError: true })
+}
 
 export default buildConfig({
   admin: {
@@ -28,6 +35,7 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
+  email: getEmailAdapter(),
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URI || process.env.DATABASE_URL || '',

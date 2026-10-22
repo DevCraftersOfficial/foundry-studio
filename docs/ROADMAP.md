@@ -95,16 +95,19 @@ This document outlines the phased development roadmap, milestone dependencies, m
 ---
 
 ### Milestone FS-006: Production Hardening & Deployment Validation
-- **Status:** Planned
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Launch Review)
 - **Dependencies:** FS-005
-- **Objective:** Select and validate production hosting candidate (per ADR-0003), harden container images, verify zero-cost or approved budget constraints, and execute launch checklist.
+- **Objective:** Establish and validate single-host production deployment baseline, harden multi-stage container images, implement strict centralized server-side environment validation, enforce security headers and health checks, and document operational runbooks.
 - **Measurable Acceptance Criteria:**
-  1. Multi-stage production `Dockerfile` with standalone Next.js output and non-root execution.
-  2. Production deployment validated on approved infrastructure (Render / Fly.io / Self-hosted VPS).
-  3. Database backup and restore runbook documented and tested.
-  4. Security audit: HTTP security headers, CORS policies, rate limiting, and secret sanitization verified.
-  5. Formal launch gate review completed with CTO.
-- **Review Gate:** Formal CTO production acceptance sign-off.
+  1. Centralized server-side environment validator (`src/lib/env.ts`) rejecting missing/short secrets and localhost/wildcard URLs in production. (Verified)
+  2. Multi-stage Node 22 Alpine `Dockerfile` with Next.js standalone output and unprivileged user execution (`USER nextjs`, UID 1001). Image content size measured at 91.9 MB (disk usage: 363 MB). (Verified)
+  3. Single-host production orchestration baseline (`docker-compose.prod.yml`) with private PostgreSQL, persistent media volume, and standalone migration runner. (Verified)
+  4. Operational disaster recovery runbook (`docs/RUNBOOK_DISASTER_RECOVERY.md`) covering pre-deployment migrations, PostgreSQL `-Fc` backups, media tarballs, and rollback caveats. (Verified)
+  5. Configurable email delivery adapter (`src/lib/email.ts`) falling back to console in development and visibly rejecting sends in production when unconfigured. (Verified)
+  6. Operational security headers (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS toggle) and zero-leak health probe (`/api/health`). (Verified)
+  7. Automated verification: 97 integration tests passing across 6 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone build passing, and live endpoint smoke tests verified (all returning HTTP 200). (Verified)
+  8. FS-006-V Verification Gate: CSP tightened without `'unsafe-eval'`, health payload minimized to status/database, migration failure gating verified, network loopback binding verified, and empirical backup/restore drill executed. (Verified)
+- **Review Gate:** Formal CTO production review before live public hosting deployment.
 
 ---
 

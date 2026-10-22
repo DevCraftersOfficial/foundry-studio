@@ -6,6 +6,8 @@ import { getPayload } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Media, User } from '@/payload-types'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Foundry Studio — Independent Journalism & Publishing',
   description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
