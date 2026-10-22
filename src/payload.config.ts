@@ -33,6 +33,7 @@ export default buildConfig({
       connectionString: process.env.DATABASE_URI || process.env.DATABASE_URL || '',
     },
     prodMigrations: migrations,
+    push: false,
   }),
   sharp,
   plugins: [],

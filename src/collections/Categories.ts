@@ -8,10 +8,12 @@ export const Categories: CollectionConfig = {
     defaultColumns: ['name', 'slug', 'updatedAt'],
   },
   access: {
+    // Categories are publicly readable
     read: () => true,
-    create: ({ req: { user } }) => Boolean(user),
-    update: ({ req: { user } }) => Boolean(user),
-    delete: ({ req: { user } }) => Boolean(user),
+    // Taxonomy management is restricted to Editors and Administrators
+    create: ({ req: { user } }) => Boolean(user && (user.role === 'admin' || user.role === 'editor')),
+    update: ({ req: { user } }) => Boolean(user && (user.role === 'admin' || user.role === 'editor')),
+    delete: ({ req: { user } }) => Boolean(user && (user.role === 'admin' || user.role === 'editor')),
   },
   hooks: {
     beforeValidate: [

@@ -1,0 +1,297 @@
+import React from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { notFound } from 'next/navigation'
+import { draftMode, headers } from 'next/headers'
+import type { Metadata } from 'next'
+import { getPayload } from 'payload'
+import config from '@/payload.config'
+import type { Post, Category, Tag, Media, User } from '@/payload-types'
+import { RichText } from '@/components/editorial/RichText'
+
+type PageProps = {
+  params: Promise<{
+    slug: string
+  }>
+}
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return ''
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(dateStr))
+  } catch {
+    return ''
+  }
+}
+
+export async function getPost(
+  slug: string,
+  isDraftMode = false,
+  overrideHeaders?: Headers,
+): Promise<Post | null> {
+  const payloadConfig = await config
+  const payload = await getPayload({ config: payloadConfig })
+  const now = new Date().toISOString()
+
+  // If in draft mode, verify the authenticated session and role authorization:
+  // Draft Mode cookies alone CANNOT grant access to unauthorized drafts.
+  if (isDraftMode) {
+    let requestHeaders: Headers
+    if (overrideHeaders) {
+      requestHeaders = overrideHeaders
+    } else {
+      try {
+        requestHeaders = await headers()
+      } catch {
+        return null
+      }
+    }
+    const { user } = await payload.auth({ headers: requestHeaders })
+
+    // Unauthenticated visitors cannot access drafts even with Draft Mode cookie active
+    if (!user) {
+      return null
+    }
+
+    const draftResult = await payload.find({
+      collection: 'posts',
+      where: {
+        slug: {
+          equals: slug,
+        },
+      },
+      overrideAccess: true,
+      depth: 2,
+      limit: 1,
+    })
+
+    const post = (draftResult.docs[0] as Post) || null
+    if (!post) {
+      return null
+    }
+
+    const isPublic =
+      post.status === 'published' &&
+      post.publishedAt &&
+      new Date(post.publishedAt).getTime() <= Date.now()
+
+    if (isPublic) {
+      return post
+    }
+
+    // Role-based preview authorization for unpublished content:
+    if (user.role === 'admin' || user.role === 'editor') {
+      return post
+    }
+
+    if (user.role === 'author') {
+      const authorId =
+        typeof post.author === 'object' && post.author !== null
+          ? (post.author as User).id
+          : post.author
+      if (authorId === user.id) {
+        return post
+      }
+      // Author is forbidden from previewing other authors' drafts
+      return null
+    }
+
+    return null
+  }
+
+  // Standard public reader query: ONLY published content where publishedAt <= now
+  const result = await payload.find({
+    collection: 'posts',
+    where: {
+      and: [
+        {
+          slug: {
+            equals: slug,
+          },
+        },
+        {
+          status: {
+            equals: 'published',
+          },
+        },
+        {
+          publishedAt: {
+            less_than_equal: now,
+          },
+        },
+      ],
+    },
+    depth: 2,
+    limit: 1,
+  })
+
+  return (result.docs[0] as Post) || null
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const draft = await draftMode()
+  const post = await getPost(slug, draft.isEnabled)
+
+  if (!post) {
+    return {
+      title: 'Story Not Found',
+    }
+  }
+
+  const title = post.title
+  const description = post.excerpt || 'Read the full dispatch on Foundry Studio.'
+
+  const ogImages = []
+  if (post.featuredImage && typeof post.featuredImage === 'object') {
+    const media = post.featuredImage as Media
+    if (media.url) {
+      ogImages.push({
+        url: media.url,
+        alt: media.alt || title,
+      })
+    }
+  }
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      publishedTime: post.publishedAt || undefined,
+      images: ogImages,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+    alternates: {
+      canonical: `/posts/${slug}`,
+    },
+  }
+}
+
+export default async function PostDetailPage({ params }: PageProps) {
+  const { slug } = await params
+  const draft = await draftMode()
+  const isDraftMode = draft.isEnabled
+  const post = await getPost(slug, isDraftMode)
+
+  if (!post) {
+    notFound()
+  }
+
+  const category =
+    post.categories && post.categories.length > 0 && typeof post.categories[0] === 'object'
+      ? (post.categories[0] as Category).name
+      : null
+
+  const authorName =
+    typeof post.author === 'object' && post.author
+      ? (post.author as User).name
+      : 'Foundry Editorial'
+
+  const featuredMedia =
+    post.featuredImage && typeof post.featuredImage === 'object'
+      ? (post.featuredImage as Media)
+      : null
+
+  const tags = (post.tags || []).filter(
+    (tag): tag is Tag => typeof tag === 'object' && tag !== null && 'name' in tag,
+  )
+
+  return (
+    <>
+      {isDraftMode && (
+        <div
+          role="status"
+          style={{
+            backgroundColor: 'var(--status-review-bg)',
+            color: 'var(--status-review-text)',
+            padding: '0.625rem 1.5rem',
+            textAlign: 'center',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            borderBottom: '1px solid var(--border-strong)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Editorial Draft Preview Mode Active • Status: {post.status} •{' '}
+          <Link href="/api/exit-preview" prefetch={false} style={{ textDecoration: 'underline', marginLeft: '0.5rem' }}>
+            Exit Preview
+          </Link>
+        </div>
+      )}
+
+      <article className="article-detail">
+        <div className="container">
+          {/* Header Section */}
+          <header className="article-header">
+            <Link href="/" className="article-back-link">
+              &larr; Front Page
+            </Link>
+
+            {category && (
+              <div>
+                <span className="category-badge">{category}</span>
+              </div>
+            )}
+
+            <h1 className="article-title">{post.title}</h1>
+
+            {post.excerpt && <p className="article-standfirst">{post.excerpt}</p>}
+
+            <div className="article-meta-row">
+              <span>By <strong>{authorName}</strong></span>
+              <span>&bull;</span>
+              <time dateTime={post.publishedAt || ''}>{formatDate(post.publishedAt)}</time>
+            </div>
+          </header>
+
+          {/* Featured Media */}
+          {featuredMedia && featuredMedia.url && (
+            <figure className="article-featured-media">
+              <div className="article-media-frame" style={{ position: 'relative' }}>
+                <Image
+                  src={featuredMedia.url}
+                  alt={featuredMedia.alt || post.title}
+                  fill
+                  priority
+                  sizes="(max-width: 960px) 100vw, 960px"
+                />
+              </div>
+              {featuredMedia.caption && (
+                <figcaption className="article-caption">{featuredMedia.caption}</figcaption>
+              )}
+            </figure>
+          )}
+
+          {/* Article Body */}
+          <div className="article-body-container">
+            <RichText content={post.content} />
+          </div>
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <footer className="article-tags-wrap">
+              <span className="tags-label">Filed Under:</span>
+              {tags.map((tag) => (
+                <span key={tag.id} className="tag-pill">
+                  #{tag.name}
+                </span>
+              ))}
+            </footer>
+          )}
+        </div>
+      </article>
+    </>
+  )
+}

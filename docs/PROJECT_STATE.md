@@ -1,116 +1,68 @@
 # Foundry Studio — Project State Record
 
-- **Current Milestone:** `FS-003-V4 — Final Publication Authorization Check`
-- **Milestone Status:** Completed & Ready for Review
-- **Last Updated:** 2026-10-22
-- **Authorized Next Task:** `FS-004 — Editorial Workflow & Publishing Lifecycle` (Awaiting CTO Approval)
+- **Current Milestone:** `FS-004-V3 — Final Administrator Provisioning Boundary`
+- **Milestone Status:** Completed & Ready for CTO Review
+- **Last Updated:** 2026-10-23
+- **Authorized Next Task:** CTO Review & Sign-Off (Pending `FS-005 — Reader Polish, SEO Validation, and Lighthouse Audits`)
 
 ---
 
-## 1. Milestones FS-003, FS-003-V, FS-003-V2, FS-003-V3 & FS-003-V4 Summary
+## 1. Executive Summary: FS-004-V3 Final Administrator Provisioning Verification
 
-Milestone FS-003 established foundational publishing domain models. Subsequent verification milestones hardened SVG media upload security (V), eliminated privilege escalation and enforced author ownership boundaries (V2), verified unpublished content confidentiality and native authentication mechanisms (V3), and validated publication authorization, unpublishing, rescheduling, and publication time integrity (V4).
+During milestone `FS-004-V3`, the administrator provisioning boundaries, context isolation, and existing-account promotion governance were systematically verified and backed with automated regression tests:
 
-### Key Milestones Achieved:
+### Key Actions Completed:
 
-1. **Publication Authorization & Lifecycle Invariants Verified:**
-   - **Direct Author Publishing:** In the approved FS-003 single-team baseline, authenticated authors can set a post directly to `published`. If `publishedAt` is omitted, it automatically defaults to `new Date().toISOString()`, making the article immediately accessible to public readers.
-   - **Post-Publication Status Mutations:** Authors can unpublish an already-published post by changing its status to `draft` (immediately revoking public access across all query paths). Authors can also reschedule an already-published post by changing its status to `scheduled` with a future date (immediately retracting public visibility).
-   - **Publication Date Invariants:** A published post cannot have a future publication date (enforcing status `scheduled` instead). A scheduled post cannot be assigned a past publication date.
-   - **Publication Time Integrity:** A scheduled post cannot become publicly readable earlier than its intended publication timestamp through any supported mutation path. Public queries filter at the database level using `publishedAt <= now`.
-   - **Consistent API Enforcement:** Verified that REST, GraphQL, and Local API operations (with access overrides disabled) execute identical validation hooks and access control functions.
-2. **Unpublished Content Confidentiality & Privilege Boundaries:**
-   - **Collaborative Draft Reading:** Authenticated team members can read drafts across authors for editorial review, but mutations (`update`, `delete`) remain strictly isolated to the post author (`{ author: { equals: req.user.id } }`).
-   - **Anti-Spoofing & Self-Update:** Post creation forces `data.author = req.user.id`; author reassignment is blocked. User profile updates are constrained to `id === req.user.id`.
-   - **Authentication State Protection:** Native login, password changes, and credential verification flows operate through Payload's Argon2/PBKDF2 routines; client input cannot tamper with internal tokens or inject privileged roles.
-3. **Comprehensive Automated Verification:**
-   - 33 integration tests across `tests/int/publishing.int.spec.ts` (32 tests) and `tests/int/api.int.spec.ts` (1 test).
-   - Test suite verifies: Direct author publishing, unpublishing to draft, rescheduling to future date, publication date invariants, publication time integrity, category/tag uniqueness, post slug auto-formatting and uniqueness, relationship persistence, anonymous draft and future-scheduled post denial (both `find` and `findByID`), cross-author draft reading by authenticated users, author email privacy protection, user self-update boundary, privilege escalation stripping, legitimate login and password change flows, direct credential tampering defense, author anti-spoofing on creation, author-level mutation boundaries (non-authors cannot edit/delete other posts), anonymous mutation denial across all collections, SVG upload rejection, MIME type checking, and 10MB size limits.
-   - 33 of 33 integration tests passing (100% pass rate).
-4. **Type Safety & Build Verification:**
-   - `npx tsc --noEmit`: 0 errors.
-   - `npm run lint`: 0 errors, 0 warnings.
-   - `npm run build`: Production Next.js Turbopack build succeeded in 9.9 seconds.
+1. **Privileged Context Isolation (`allowExplicitRole`):**
+   - **Internal Server-Side Boundary:** `allowExplicitRole` is evaluated strictly from `req.context?.allowExplicitRole`. In Payload CMS, `req.context` is internal to the server and is never populated from client-supplied HTTP request headers or JSON request bodies.
+   - **Body-Injection Neutralization:** Verified through integration tests that passing `{ "context": { "allowExplicitRole": true }, "role": "admin" }` in REST JSON or Local API calls without genuine server context has zero effect on `req.context`. The `beforeChange` hook unconditionally enforces `data.role = 'author'` for unprivileged calls.
+   - **Admin-Only User Creation Access:** Hardened `Users.access.create` to `({ req: { user } }) => Boolean(user) && user?.role === 'admin'`. Unauthenticated callers receive an immediate HTTP 403 Forbidden on registration attempts across REST, GraphQL, and Local API.
+
+2. **Concurrent Seed-Admin Execution Safety:**
+   - **Idempotency & Race Protection:** Enhanced [`src/scripts/seed-admin.ts`](file:///home/lokeshverma/DevCrafters/foundry-studio/src/scripts/seed-admin.ts) to handle concurrent invocations safely. If multiple provisioning processes run simultaneously, PostgreSQL's unique index on `email` prevents duplicate creation, and subsequent processes gracefully confirm the active administrator record without throwing or corrupting state.
+   - **Deterministic Concurrency Test:** Proved through automated tests that 5 concurrent executions of `seedAdmin` provision exactly one administrator account in the database without creating or promoting any unintended accounts.
+
+3. **Existing-Account Promotion Governance & Target Validation:**
+   - **Explicit Opt-In Required:** `seedAdmin` strictly refuses to promote existing accounts unless `ALLOW_EXISTING_ADMIN_PROMOTION=true` is explicitly configured.
+   - **Target Account Integrity Validation:** Validates the target email address format using RFC-compliant regex, trims and lowercases inputs, and asserts that the targeted user document strictly matches the target email and contains a valid ID before executing any role mutation.
+   - **Isolation of Unrelated Accounts:** Verified that promoting a targeted account never alters the roles or attributes of any other user accounts in the database.
 
 ---
 
-## 2. Inventory of Files Created or Modified in FS-003 Pipeline
+## 2. Updated File Inventory
 
 | File | Status | Description |
 | :--- | :--- | :--- |
-| `src/lib/slug.ts` | Created | URL-safe slug formatting and validation utility. |
-| `src/collections/Categories.ts` | Created | Categories collection configuration with unique slug and access control. |
-| `src/collections/Tags.ts` | Created | Tags collection configuration with unique slug and access control. |
-| `src/collections/Posts.ts` | Created | Posts collection with publishing lifecycle, publication invariants, author mutation boundaries, anti-spoofing, and security filters. |
-| `src/collections/Media.ts` | Modified | Extended with 10MB limit, SVG disallowance, Sharp variants, focal point, and alt text. |
-| `src/collections/Users.ts` | Modified | Added required `name`, self-update boundary, email privacy, and privilege-stripping hooks. |
-| `src/payload.config.ts` | Modified | Registered `Posts`, `Categories`, and `Tags` collections. |
-| `src/payload-types.ts` | Modified | Regenerated TypeScript interfaces matching new schema models. |
-| `src/migrations/20261022_170247_add_publishing_domain.ts` | Created | Database migration establishing publishing domain tables, columns, and constraints. |
-| `src/migrations/index.ts` | Modified | Registered new migration in Payload migration registry. |
-| `tests/int/publishing.int.spec.ts` | Created | Comprehensive Vitest integration tests (32 tests) covering all publishing security, lifecycle, and authorization rules. |
-| `tests/helpers/seedUser.ts` | Modified | Updated test user fixture to include required `name` field. |
-| `vitest.config.mts` | Modified | Configured `environment: 'node'` for reliable buffer handling during upload integration tests. |
-| `README.md` | Modified | Added Content Models & Media Architecture documentation and updated directory tree. |
-| `docs/ROADMAP.md` | Modified | Updated FS-001, FS-002, and FS-003 milestone statuses and details. |
-| `docs/PROJECT_STATE.md` | Modified | Authoritative project state update with FS-003-V4 verification evidence. |
+| `src/collections/Users.ts` | Modified | Hardened `access.create` to require authenticated administrator (`Boolean(user) && user?.role === 'admin'`). |
+| `src/scripts/seed-admin.ts` | Modified | Added email regex validation, target account integrity checks, exportable `seedAdmin` function for tests. |
+| `tests/int/admin-bootstrap.int.spec.ts` | Modified | Added regression tests for context spoofing, concurrent seed execution, target account validation, and invalid email rejection. |
+| `docs/PROJECT_STATE.md` | Modified | Authoritative project state update. |
 
 ---
 
-## 3. Commands Executed & Actual Results in FS-003 Pipeline
+## 3. Verification Commands & Deterministic Results
 
-*Note: In accordance with project instructions, no Git or GitHub commands were executed.*
-
-| Command Executed | Exit Code | Result / Output Summary |
+| Verification Check | Exact Command Executed | Result |
 | :--- | :--- | :--- |
-| `npm run generate:types` | 0 | Successfully compiled `src/payload-types.ts` with all 5 collections. |
-| `npm run migrate` | 0 | Successfully applied Batch 2 migration `20261022_170247_add_publishing_domain`. |
-| `npm run migrate:status` | 0 | Verified 2 of 2 migrations executed (`init` [Batch 1], `add_publishing_domain` [Batch 2]). |
-| `npm run test:int` | 0 | 2 test files, 33/33 tests passed (100% green). |
-| `npx tsc --noEmit` | 0 | 0 errors across entire codebase. |
-| `npm run lint` | 0 | 0 errors, 0 warnings across all files. |
-| `npm run build` | 0 | Production build compiled with Turbopack in 9.9s (all server routes and admin assets compiled). |
+| **Integration Test Suite** | `npm run test:int` | **58 passed across 4 test files** (100% green in 6.08s) |
+| **Type Checking** | `npx tsc --noEmit` | **0 errors** (100% type-safe) |
+| **Linting** | `npm run lint` | **0 errors, 0 warnings** |
+| **Production Build** | `npm run build` | **Successfully compiled all 10 routes** with Turbopack |
+| **Database Migrations** | `npm run migrate:status` | **Batches 1, 2, and 3 cleanly applied** |
+
+### Verified Test Suites Breakdown (`npm run test:int`):
+- `tests/int/admin-bootstrap.int.spec.ts` (9/9 passed) — Concurrent creation race safety, anonymous registration denial, role injection defense, context spoofing defense, concurrent seedAdmin execution, target account promotion validation, invalid email rejection, admin immutability, promotion gating.
+- `tests/int/editorial.int.spec.ts` (15/15 passed) — RBAC, post lifecycle transitions, author publishing gate, preview secret validation, unauthenticated secret possession rejection (401), author preview boundary (403), editor/admin preview access (307), reader route draft mode cookie authorization.
+- `tests/int/publishing.int.spec.ts` (33/33 passed) — REST/GraphQL draft confidentiality, author draft isolation, read-time scheduled post disclosure, SVG upload rejection, password-change integrity.
+- `tests/int/api.int.spec.ts` (1/1 passed) — REST collections endpoint discovery.
 
 ---
 
-## 4. Verification Checks Performed in FS-003-V4
+## 4. Remaining Production Blockers
 
-- [x] **Direct Author Publishing:** Verified that authors can set posts to `published`; `publishedAt` defaults to `now`; public visibility is immediate.
-- [x] **Post-Publication Lifecycle Mutations:** Verified unpublishing (status `draft`) immediately revokes public access. Verified rescheduling (status `scheduled` with future date) retracts public access.
-- [x] **Publication Date Invariants:** Verified that published posts cannot have future dates. Verified that scheduled posts cannot have past dates.
-- [x] **Publication Time Integrity:** Verified that scheduled posts cannot be made public before their timestamp through any supported mutation path.
-- [x] **API Consistency:** Confirmed that REST, GraphQL, and Local API (with access overrides disabled) execute identical validation and security rules.
-- [x] **Unpublished Content Confidentiality:** Verified that authenticated users can read all drafts/scheduled posts. Anonymous queries (both `find` and direct `findByID`) are denied at the database layer.
-- [x] **Authentication Protection:** Legitimate login and password updates work; direct credential tampering is blocked.
-- [x] **Quality Standards:** `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npm run test:int` (33/33 passing), `npm run build` (success).
-- [x] **Strict Scope Discipline:** Zero Git commands executed; ₹0 budget maintained; no premature frontend pages or editorial dashboard implemented.
-
----
-
-## 5. Outstanding Operational Decisions & Production Requirements
-
-1. **Role-Based Access Control (RBAC):**
-   - The verified baseline enforces author-level ownership boundaries without speculative role models.
-   - *Roadmap Milestone FS-004:* Formal RBAC (`Author`, `Editor`, `Admin`) will introduce hierarchical roles allowing editors/admins to review and publish drafts authored by other contributors and preventing non-editorial roles from direct publishing.
-2. **Scheduling Operational Architecture:**
-   - In FS-003 / FS-003-V4, scheduled posts mature dynamically based on query-time evaluation (`publishedAt <= now`).
-   - *Operational Requirement for Production:* To mutate `status` from `'scheduled'` to `'published'` directly in the database (e.g., for static site generation or webhook event triggering), an automated background worker / cron is required.
-3. **Media Storage Durability:**
-   - Media uploads currently persist to the local directory `media/`.
-   - *Operational Requirement for Production:* Multi-instance horizontal scaling requires durable S3-compatible object storage (e.g., MinIO or AWS S3 via `@payloadcms/plugin-cloud-storage`).
-4. **Lexical Rich-Text Frontend Rendering:**
-   - Rich-text content is stored as structured Lexical JSON AST.
-   - *Milestone Requirement for FS-005:* The public publishing website must render this AST using structured React components without `dangerouslySetInnerHTML`.
-
----
-
-## 6. Next Authorized Task
-
-- **Next Milestone:** `FS-004 — Editorial Workflow & Publishing Lifecycle`
-- **Prerequisite:** Explicit sign-off and approval from the CTO on Milestone FS-003-V4.
-- **Scope of FS-004:**
-  - Build editorial dashboard and publishing workflow views adhering to `docs/DESIGN_SYSTEM.md`.
-  - Implement full post management UI (list, filter by status/category, search, pagination).
-  - Implement editorial post editing interface with Lexical editor and media selector.
-  - Implement preview mechanism for drafts and scheduled posts.
-
+Before Foundry Studio is ready for production deployment:
+1. **Email Adapter Configuration:** Currently using default console email adapter. A production SMTP / transactional email adapter (e.g. Resend / Nodemailer) must be configured with verified domain DKIM/SPF.
+2. **Object Storage Provider:** Uploaded media is currently stored on the local filesystem (`/media`). Production requires S3-compatible cloud storage adapter (ADR-004).
+3. **External Monitoring & Error Tracking:** Sentry / OpenTelemetry logging and health-check alerting need to be wired.
+4. **Lighthouse & Core Web Vitals Audits:** Full performance, SEO, and accessibility audit across mobile and desktop viewports (`FS-005`).
+5. **Zero Git Command Boundary Preserved:** Autonomous agents have executed zero git commands. All version control operations remain manual for the human repository owner.

@@ -61,7 +61,17 @@ describe('FS-003 Publishing Domain & Access Control', () => {
     })
 
     if (existingUsers.docs.length > 0) {
-      testEditor = existingUsers.docs[0]
+      testEditor = await payload.update({
+        collection: 'users',
+        id: existingUsers.docs[0].id,
+        data: {
+          role: 'editor',
+        },
+        context: {
+          allowExplicitRole: true,
+        },
+        overrideAccess: true,
+      })
     } else {
       testEditor = await payload.create({
         collection: 'users',
@@ -69,7 +79,12 @@ describe('FS-003 Publishing Domain & Access Control', () => {
           name: 'Chief Editorial Lead',
           email: 'fs003-editor@devcrafters.io',
           password: 'CorrectHorseBatteryStaple123!',
+          role: 'editor',
         },
+        context: {
+          allowExplicitRole: true,
+        },
+        overrideAccess: true,
       })
     }
 
@@ -432,7 +447,12 @@ describe('FS-003 Publishing Domain & Access Control', () => {
           name: 'Colleague Editor',
           email: `fs003-colleague-${Date.now()}@devcrafters.io`,
           password: 'CorrectHorseBatteryStapleColleague1!',
+          role: 'editor',
         },
+        context: {
+          allowExplicitRole: true,
+        },
+        overrideAccess: true,
       })
 
       try {
@@ -467,6 +487,48 @@ describe('FS-003 Publishing Domain & Access Control', () => {
         await payload.delete({
           collection: 'users',
           id: colleagueUser.id,
+        })
+      }
+    })
+
+    it('strictly forbids authors from reading another author’s draft posts', async () => {
+      const otherAuthor = await payload.create({
+        collection: 'users',
+        data: {
+          name: 'Other Author',
+          email: `fs003-author-boundary-${Date.now()}@devcrafters.io`,
+          password: 'CorrectHorseBatteryStapleAuthor1!',
+          role: 'author',
+        },
+        context: {
+          allowExplicitRole: true,
+        },
+        overrideAccess: true,
+      })
+
+      try {
+        // Other author querying for draftPost (authored by testEditor): returns 0 docs
+        const queryResult = await payload.find({
+          collection: 'posts',
+          where: { slug: { equals: 'test-private-draft-post' } },
+          overrideAccess: false,
+          user: otherAuthor,
+        })
+        expect(queryResult.docs.length).toBe(0)
+
+        // Direct-ID lookup throws NotFound / Forbidden
+        await expect(
+          payload.findByID({
+            collection: 'posts',
+            id: draftPost.id,
+            overrideAccess: false,
+            user: otherAuthor,
+          }),
+        ).rejects.toThrow()
+      } finally {
+        await payload.delete({
+          collection: 'users',
+          id: otherAuthor.id,
         })
       }
     })
@@ -810,7 +872,7 @@ describe('FS-003 Publishing Domain & Access Control', () => {
       })
 
       expect(updated.name).toBe('Chief Editorial Lead Verified')
-      expect((updated as unknown as Record<string, unknown>).role).toBeUndefined()
+      expect(updated.role).toBe('editor')
       expect((updated as unknown as Record<string, unknown>).roles).toBeUndefined()
       expect((updated as unknown as Record<string, unknown>).isAdmin).toBeUndefined()
 
@@ -820,7 +882,7 @@ describe('FS-003 Publishing Domain & Access Control', () => {
         id: testEditor.id,
         overrideAccess: true,
       })
-      expect((refreshed as unknown as Record<string, unknown>).role).toBeUndefined()
+      expect(refreshed.role).toBe('editor')
       expect((refreshed as unknown as Record<string, unknown>).isAdmin).toBeUndefined()
     })
 

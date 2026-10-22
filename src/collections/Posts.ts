@@ -8,56 +8,79 @@ export const Posts: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'status', 'publishedAt', 'author', 'updatedAt'],
+    preview: (doc) => {
+      const secret = process.env.PREVIEW_SECRET || ''
+      if (doc?.slug) {
+        return `/api/preview?slug=${doc.slug}&secret=${secret}`
+      }
+      return '/'
+    },
   },
   access: {
     // Public readers can only query published posts or scheduled posts whose time has passed.
-    // Authenticated editorial users have full read access to drafts, scheduled, and published posts.
+    // Editors and Admins have full read access to drafts, in-review, scheduled, and published posts.
+    // Authors can only read published posts and their own authored posts.
     read: ({ req: { user } }) => {
-      if (user) {
+      if (user?.role === 'admin' || user?.role === 'editor') {
         return true
       }
 
       const now = new Date().toISOString()
 
-      const filter: Where = {
-        or: [
-          {
-            and: [
-              {
-                status: {
-                  equals: 'published',
-                },
+      const publicWhere: Where[] = [
+        {
+          and: [
+            {
+              status: {
+                equals: 'published',
               },
-              {
-                publishedAt: {
-                  less_than_equal: now,
-                },
+            },
+            {
+              publishedAt: {
+                less_than_equal: now,
               },
-            ],
-          },
-          {
-            and: [
-              {
-                status: {
-                  equals: 'scheduled',
-                },
+            },
+          ],
+        },
+        {
+          and: [
+            {
+              status: {
+                equals: 'scheduled',
               },
-              {
-                publishedAt: {
-                  less_than_equal: now,
-                },
+            },
+            {
+              publishedAt: {
+                less_than_equal: now,
               },
-            ],
-          },
-        ],
+            },
+          ],
+        },
+      ]
+
+      if (user?.role === 'author') {
+        return {
+          or: [
+            {
+              author: {
+                equals: user.id,
+              },
+            },
+            ...publicWhere,
+          ],
+        }
       }
 
-      return filter
+      return {
+        or: publicWhere,
+      }
     },
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => {
       if (!user) return false
-      // Ordinary authors can only update their own posts
+      // Admins and Editors can update any post
+      if (user.role === 'admin' || user.role === 'editor') return true
+      // Authors can update only their own posts
       return {
         author: {
           equals: user.id,
@@ -66,12 +89,24 @@ export const Posts: CollectionConfig = {
     },
     delete: ({ req: { user } }) => {
       if (!user) return false
-      // Ordinary authors can only delete their own posts
-      return {
-        author: {
-          equals: user.id,
-        },
+      // Admins and Editors can delete any post
+      if (user.role === 'admin' || user.role === 'editor') return true
+      // Authors can delete only their own draft posts
+      const filter: Where = {
+        and: [
+          {
+            author: {
+              equals: user.id,
+            },
+          },
+          {
+            status: {
+              equals: 'draft',
+            },
+          },
+        ],
       }
+      return filter
     },
   },
   hooks: {
@@ -84,7 +119,23 @@ export const Posts: CollectionConfig = {
           data.slug = formatSlug(data.title)
         }
 
-        // 2. Validate scheduled status requirements
+        // 2. Author role publishing restrictions
+        const isAuthor = req.user?.role === 'author'
+        if (isAuthor && !req.context?.allowAuthorPublish) {
+          if (operation === 'create') {
+            if (data.status === 'published' || data.status === 'scheduled' || data.status === 'archived') {
+              throw new APIError('Authors are not permitted to directly publish, schedule, or archive posts. Submit for review instead.', 403)
+            }
+          }
+
+          if (operation === 'update') {
+            if (data.status === 'published' || data.status === 'scheduled' || data.status === 'archived') {
+              throw new APIError('Authors are not permitted to directly publish, schedule, or archive posts. Submit for review instead.', 403)
+            }
+          }
+        }
+
+        // 3. Validate scheduled status requirements
         if (data.status === 'scheduled') {
           if (!data.publishedAt) {
             throw new APIError('A valid publication date (publishedAt) is required when status is "scheduled".', 400)
@@ -102,7 +153,7 @@ export const Posts: CollectionConfig = {
           }
         }
 
-        // 3. Validate published status requirements
+        // 4. Validate published status requirements
         if (data.status === 'published') {
           if (!data.publishedAt) {
             data.publishedAt = new Date().toISOString()
@@ -124,14 +175,18 @@ export const Posts: CollectionConfig = {
       ({ data, req, operation }) => {
         if (!data) return data
 
-        // Enforce author to authenticated user on create to prevent author spoofing
-        if (operation === 'create' && req.user && !req.context?.allowExplicitAuthor) {
-          data.author = req.user.id
+        const isPrivileged = req.user?.role === 'admin' || req.user?.role === 'editor' || req.context?.allowExplicitAuthor
+
+        // Enforce author to authenticated user on create if not privileged
+        if (operation === 'create' && req.user) {
+          if (!isPrivileged || !data.author) {
+            data.author = req.user.id
+          }
         }
 
-        // Prevent unauthorized reassignment of author on update
-        if (operation === 'update' && req.user && data.author && !req.context?.allowExplicitAuthor) {
-          if (data.author !== req.user.id) {
+        // Prevent unauthorized reassignment of author on update by normal authors
+        if (operation === 'update' && req.user && data.author) {
+          if (!isPrivileged && data.author !== req.user.id) {
             throw new APIError('Cannot reassign post author to another user.', 403)
           }
         }
@@ -172,12 +227,20 @@ export const Posts: CollectionConfig = {
           value: 'draft',
         },
         {
+          label: 'In Review',
+          value: 'in_review',
+        },
+        {
           label: 'Scheduled',
           value: 'scheduled',
         },
         {
           label: 'Published',
           value: 'published',
+        },
+        {
+          label: 'Archived',
+          value: 'archived',
         },
       ],
       admin: {

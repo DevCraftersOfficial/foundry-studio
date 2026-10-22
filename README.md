@@ -114,9 +114,8 @@ Start the local development server:
 npm run dev
 ```
 
-- **Frontend Application:** [http://localhost:3000](http://localhost:3000)
-- **Admin Panel:** [http://localhost:3000/admin](http://localhost:3000/admin)
-- **Custom Route Example:** [http://localhost:3000/my-route](http://localhost:3000/my-route)
+- **Frontend Publication:** [http://localhost:3000](http://localhost:3000)
+- **Editorial Admin Studio:** [http://localhost:3000/admin](http://localhost:3000/admin)
 
 Upon first visiting `/admin`, follow the on-screen prompt to create the initial administrative user.
 

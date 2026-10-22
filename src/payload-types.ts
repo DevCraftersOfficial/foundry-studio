@@ -130,6 +130,10 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name: string;
+  /**
+   * Determines publishing permissions and administrative access.
+   */
+  role?: ('author' | 'editor' | 'admin') | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -204,7 +208,7 @@ export interface Post {
   id: number;
   title: string;
   slug: string;
-  status: 'draft' | 'scheduled' | 'published';
+  status: 'draft' | 'in_review' | 'scheduled' | 'published' | 'archived';
   publishedAt?: string | null;
   author?: (number | null) | User;
   featuredImage?: (number | null) | Media;
@@ -347,6 +351,7 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  role?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

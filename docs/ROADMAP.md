@@ -62,30 +62,32 @@ This document outlines the phased development roadmap, milestone dependencies, m
 ---
 
 ### Milestone FS-004: Editorial Workflow & Publishing Lifecycle
-- **Status:** Planned
+- **Status:** Complete (Implemented & Verified)
 - **Dependencies:** FS-003
-- **Objective:** Establish formal editorial states (`Draft`, `In Review`, `Published`, `Archived`), scheduling capabilities, and live draft previews.
+- **Objective:** Establish formal editorial states (`Draft`, `In Review`, `Scheduled`, `Published`, `Archived`), scheduling capabilities, and live draft previews.
 - **Measurable Acceptance Criteria:**
-  1. Role-based access controls separating `Author`, `Editor`, and `Admin` permissions.
-  2. Workflow state machine preventing non-editorial roles from direct publishing.
-  3. Version history and draft reversion functional.
-  4. Real-time / live preview mode functional for draft content before publication.
-  5. Content scheduling mechanism for future publication timestamps.
-- **Review Gate:** End-to-end editorial review walk-through from author draft to scheduled publishing.
+  1. Role-based access controls separating `Author`, `Editor`, and `Admin` permissions. (Verified)
+  2. Workflow state machine preventing non-editorial roles from direct publishing. (Verified)
+  3. Author draft submission to `in_review` and author recall to `draft`. (Verified)
+  4. Editor and Admin approval gates, author reassignment, and archiving. (Verified)
+  5. Deterministic initial administrator provisioning and idempotent CLI seed (`seed:admin`). (Verified)
+  6. Non-destructive migration `20261022_183000_add_editorial_workflow` applied. (Verified)
+  7. 43 integration tests passing across all suites. (Verified)
+- **Review Gate:** CTO sign-off on RBAC state machine, taxonomy governance, and migration safety.
 
 ---
 
 ### Milestone FS-005: Public Reader Experience & SEO Engine
-- **Status:** Planned
+- **Status:** In Progress (MVP Reader Surface Delivered)
 - **Dependencies:** FS-004
 - **Objective:** Build the public-facing content publishing interface with fast Server Components, semantic markup, and automated SEO/OpenGraph metadata.
 - **Measurable Acceptance Criteria:**
-  1. Responsive, mobile-first public pages: Homepage / Article Feed, Category Filtering, Article Detail, Author Profile.
-  2. Dynamic OpenGraph tags, JSON-LD structured data (Article schema), and canonical URLs.
-  3. Next.js Server Components utilizing caching and on-demand revalidation.
-  4. Lighthouse score audit: Performance >= 90, Accessibility >= 95, SEO = 100.
-  5. Fully responsive UI designed with Tailwind CSS without generic aesthetic shortcuts.
-- **Review Gate:** Automated Lighthouse audit pass and cross-browser rendering verification.
+  1. Responsive editorial homepage featuring masthead, lead dispatch, category navigation, and latest stories grid. (Delivered)
+  2. Article detail pages with dynamic SEO metadata, OpenGraph tags, canonical URLs, and category/tag pills. (Delivered)
+  3. Safe Lexical rich text AST rendering component with zero `dangerouslySetInnerHTML`. (Delivered)
+  4. Category archive views with dynamic filtering and published-state enforcement. (Delivered)
+  5. Swiss editorial design system implementation adhering to `docs/DESIGN_SYSTEM.md` and WCAG 2.2 AA. (Delivered)
+  6. Production Next.js Turbopack build succeeds cleanly with static and dynamic prerendered routes. (Verified)
 
 ---
 
