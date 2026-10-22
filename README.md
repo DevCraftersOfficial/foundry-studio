@@ -1,100 +1,166 @@
 # Foundry Studio
 
-> A content publishing platform developed under **DevCrafters**, designed for rapid deployment across client projects with an evolutionary roadmap toward a multi-tenant SaaS publishing engine.
+**Foundry Studio** is an open-source, modern content publishing platform developed by **DevCrafters**. It combines the developer ergonomics of **Next.js (App Router)** with the content modeling and editorial capabilities of **Payload CMS 3.x**, backed by **PostgreSQL** and styled with **Tailwind CSS**.
 
 ---
 
-## 1. Product Overview
+## 1. Architecture & Stack Overview
 
-Foundry Studio is an open-source, full-stack content publishing platform engineered for editorial speed, modularity, and zero initial capital cost (₹0 budget constraint). Built on modern web standards, it integrates a rich editorial CMS directly into a high-performance publishing application.
-
-### Key Highlights
-- **Unified TypeScript Architecture:** Full-stack TypeScript spanning database schemas, editorial admin controls, and public web pages.
-- **Embedded Editorial Engine:** Native integration with Payload CMS 3.x directly inside Next.js App Router.
-- **Relational Integrity:** PostgreSQL persistence with native JSONB flexibility for dynamic content blocks.
-- **Strict Editorial Governance:** Drafts, multi-stage editorial review, scheduling, version history, and live preview.
-- **Zero-Cost Foundation:** Designed exclusively with open-source tools and local containerization.
+- **Frontend & App Framework:** Next.js 16 (App Router, Server Components)
+- **CMS Engine:** Payload CMS 3.x (natively embedded route handlers)
+- **Database:** PostgreSQL 18 (via `@payloadcms/db-postgres` and Drizzle ORM)
+- **Language:** TypeScript (strict mode enabled)
+- **Local Persistence:** Containerized PostgreSQL via Docker Compose
+- **Cost & Licensing:** Strict ₹0 initial budget; 100% open-source and free for development and self-hosting
 
 ---
 
-## 2. Planned Technology Stack
+## 2. Prerequisites
 
-| Layer | Technology | Details |
-| :--- | :--- | :--- |
-| **Framework** | [Next.js](https://nextjs.org/) (App Router) | Server Components, dynamic streaming, on-demand revalidation |
-| **CMS Core** | [Payload CMS 3.x](https://payloadcms.com/) | Native Next.js co-location, Lexical rich text, RBAC, live previews |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) | Strict type safety end-to-end |
-| **Database** | [PostgreSQL](https://www.postgresql.org/) | Managed locally via Docker Compose; accessed via Drizzle / Payload |
-| **Styling** | [Tailwind CSS](https://tailwindcss.com/) | Bespoke design tokens and responsive utility styles |
-| **Local Dev** | [Docker Compose](https://docs.docker.com/compose/) | Isolated local PostgreSQL database container |
+Ensure your development workstation meets these minimum runtime requirements:
+
+- **Node.js:** `>= 22.0.0` (LTS recommended, verified on `v22.22.2`)
+- **npm:** `10.x+` (verified on `10.9.7`)
+- **Docker & Docker Compose:** Docker Engine `24+` / Compose `v2+` (verified on Docker `29.8.2` and Compose `v5.6.0`)
 
 ---
 
-## 3. Current Project Status
+## 3. Local Environment Setup
 
-- **Active Milestone:** `FS-001 — Initialize the Foundry Studio Project Foundation` (Completed)
-- **Status:** Architectural documentation, governance rules, and environment safety established. Application scaffolding will commence in `FS-002` following CTO approval.
-- **Next Milestone:** `FS-002 — Core Scaffolding & Local Database Environment`
+### 3.1. Clone and Configure Environment Variables
 
-For an up-to-date log of work completed, commands run, and current state, see [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md).
+Create your local `.env` from the provided safe template:
 
----
-
-## 4. Prerequisites
-
-Before setting up Foundry Studio, ensure your local development workstation has:
-
-- **Node.js:** `v22.x` (matching `.nvmrc`)
-- **Package Manager:** `npm` (v10+)
-- **Container Runtime:** `Docker` (24+) and `Docker Compose` (v2+)
-
-To verify your tools:
 ```bash
-node --version
-npm --version
-docker --version
-docker compose version
+cp .env.example .env
+```
+
+Ensure the variables are set in `.env`:
+
+```env
+# Database connection string (PostgreSQL)
+DATABASE_URI=postgresql://foundry_app:<your-password>@localhost:5432/foundry_studio
+DATABASE_URL=postgresql://foundry_app:<your-password>@localhost:5432/foundry_studio
+
+# Payload CMS secret key (at least 32 characters)
+PAYLOAD_SECRET=your-secure-payload-secret-at-least-32-chars
+```
+
+> [!IMPORTANT]
+> Never commit `.env` or any real secrets to version control. The repository `.gitignore` strictly protects `.env` files.
+
+### 3.2. Install Dependencies
+
+Install all project dependencies using `npm`:
+
+```bash
+npm install
 ```
 
 ---
 
-## 5. Local Setup Instructions (Current Stage)
+## 4. Starting and Checking PostgreSQL
 
-At this foundational stage (Milestone FS-001), application dependencies have not yet been scaffolded. To prepare your local environment for upcoming milestones:
+Foundry Studio uses a containerized PostgreSQL instance for local development:
 
-1. **Review Project Guidelines & Governance:**
-   Read [AGENTS.md](AGENTS.md) and [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) before contributing.
+### Start PostgreSQL
+```bash
+docker compose up -d postgres
+```
 
-2. **Inspect Environment Configuration Template:**
-   Inspect the environment template:
-   ```bash
-   cat .env.example
-   ```
-   When application implementation begins in `FS-002`, you will copy this file to `.env.local`:
-   ```bash
-   cp .env.example .env.local
-   ```
-   *(Note: Never commit `.env.local` to version control; it is automatically gitignored).*
+### Check Container Status and Health
+```bash
+docker ps --filter "name=foundry-postgres"
+```
 
-3. **Verify Environment Safety:**
-   Ensure no untracked secrets or local environment files are exposed.
+### Verify Database Connectivity
+```bash
+docker exec foundry-postgres pg_isready -U foundry_app -d foundry_studio
+```
 
 ---
 
-## 6. Project Documentation Index
+## 5. Database Migrations Workflow
 
-| Document | Description |
-| :--- | :--- |
-| [AGENTS.md](AGENTS.md) | Contributor conventions, security rules, verification rules, and agent instructions. |
-| [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Strategic vision, user personas, editorial workflows, and constraints. |
-| [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md) | Authoritative record of current project state, checks, and next steps. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Phased development plan, milestone acceptance criteria, and review gates. |
-| [ADR-0001: CMS & Application Architecture](docs/adr/0001-cms-and-application-architecture.md) | Rationale for Next.js App Router + Payload CMS 3.x + TypeScript. |
-| [ADR-0002: Database & Persistence](docs/adr/0002-database-and-persistence.md) | Rationale for PostgreSQL and local Docker Compose containerization. |
-| [ADR-0003: Production Deployment Strategy](docs/adr/0003-production-deployment-strategy.md) | Candidate evaluation framework; production hosting kept undecided. |
+Foundry Studio uses Payload CMS's native Drizzle-backed PostgreSQL migration workflow:
+
+### Check Migration Status
+```bash
+npm run migrate:status
+```
+
+### Create a New Migration
+```bash
+npm run migrate:create <migration-name>
+```
+
+### Run Pending Migrations
+```bash
+npm run migrate
+```
+
+### Revert the Last Migration Batch
+```bash
+npm run migrate:down
+```
 
 ---
 
-## 7. License
+## 6. Development Server
 
-Foundry Studio is developed under **DevCrafters**. Distributed under the MIT License.
+Start the local development server:
+
+```bash
+npm run dev
+```
+
+- **Frontend Application:** [http://localhost:3000](http://localhost:3000)
+- **Admin Panel:** [http://localhost:3000/admin](http://localhost:3000/admin)
+- **Custom Route Example:** [http://localhost:3000/my-route](http://localhost:3000/my-route)
+
+Upon first visiting `/admin`, follow the on-screen prompt to create the initial administrative user.
+
+---
+
+## 7. Verification, Quality & Build Commands
+
+| Command | Purpose | Verification Standard |
+|---|---|---|
+| `npx tsc --noEmit` | TypeScript type-check | 0 errors |
+| `npm run lint` | ESLint checks | 0 errors, 0 warnings |
+| `npm run test:int` | Vitest integration tests (database/ORM) | All tests pass |
+| `npm run build` | Next.js production build | Successful static and dynamic compilation |
+| `npm run start` | Start production server | Serves optimized build |
+
+---
+
+## 8. Project Structure
+
+```
+├── .env.example              # Sanitized environment variable template
+├── AGENTS.md                 # Autonomous & human contributor engineering guide
+├── docker-compose.yml        # Local PostgreSQL container configuration
+├── Dockerfile                # Multi-stage production container build
+├── docs/                     # Architectural specifications and project state
+│   ├── PROJECT_CONTEXT.md    # Product vision, personas, and MVP scope
+│   ├── PROJECT_STATE.md      # Authoritative project state and verification log
+│   ├── ROADMAP.md            # Phased development roadmap
+│   └── adr/                  # Architectural Decision Records (ADRs)
+├── src/
+│   ├── app/                  # Next.js App Router (Frontend & Payload admin routes)
+│   ├── collections/          # Payload CMS collections (Users, Media)
+│   ├── migrations/           # Version-controlled database migrations
+│   ├── payload-types.ts      # Auto-generated TypeScript types for collections
+│   └── payload.config.ts     # Central Payload CMS configuration
+└── tests/                    # Integration and end-to-end test suites
+```
+
+---
+
+## 9. Engineering Governance
+
+All automated agents and human contributors must adhere to [AGENTS.md](file:///home/lokeshverma/DevCrafters/foundry-studio/AGENTS.md):
+- Zero Git execution by autonomous agents.
+- Zero secret leakage in source code or templates.
+- Strict ₹0 budget constraint.
+- Continuous maintenance of `docs/PROJECT_STATE.md`.
