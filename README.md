@@ -148,16 +148,57 @@ Upon first visiting `/admin`, follow the on-screen prompt to create the initial 
 │   └── adr/                  # Architectural Decision Records (ADRs)
 ├── src/
 │   ├── app/                  # Next.js App Router (Frontend & Payload admin routes)
-│   ├── collections/          # Payload CMS collections (Users, Media)
+│   ├── collections/          # Payload CMS collections (Posts, Categories, Tags, Media, Users)
+│   ├── lib/                  # Shared utilities (slug formatting and validation)
 │   ├── migrations/           # Version-controlled database migrations
 │   ├── payload-types.ts      # Auto-generated TypeScript types for collections
 │   └── payload.config.ts     # Central Payload CMS configuration
 └── tests/                    # Integration and end-to-end test suites
+    ├── helpers/              # Test seeding and client utilities
+    └── int/                  # Integration test specs (users, publishing)
 ```
 
 ---
 
-## 9. Engineering Governance
+## 9. Content Models & Media Architecture
+
+Foundry Studio provides a structured content publishing engine:
+
+### 9.1. Collections
+
+- **`Posts`**: Core editorial publishing model.
+  - `title`: Required title string.
+  - `slug`: URL-safe, unique, indexed identifier (auto-formatted from title if omitted).
+  - `excerpt`: Optional summary text (maximum 300 characters).
+  - `content`: Payload Lexical rich-text AST (structured JSON, no raw or un-sanitized HTML).
+  - `featuredImage`: Relationship to `Media` collection.
+  - `categories`: Relationship to `Categories` (has-many).
+  - `tags`: Relationship to `Tags` (has-many).
+  - `author`: Relationship to `Users` (defaults to authenticated creator).
+  - `publishedAt`: Publication date and time.
+  - `status`: Editorial state (`draft`, `scheduled`, `published`).
+- **`Categories`**: Topical taxonomy model (`name`, `slug`, `description`).
+- **`Tags`**: Free-form indexing tags (`name`, `slug`).
+- **`Media`**: Curated assets storage with Sharp image transformation:
+  - 10MB server-side file size limit.
+  - Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `image/avif`, `image/gif` (SVG uploads are strictly disallowed for XSS and XML entity security).
+  - Focal point selection and required `alt` accessibility text.
+  - Automatic variant generation: `thumbnail` (400x300), `card` (768x512), `feature` (1200x675).
+  - Local filesystem storage in `media/` (gitignored, see production durability note below).
+- **`Users`**: Editorial accounts with required `name`, self-update constraints, and field-level privacy protection on `email`.
+
+### 9.2. Publishing Lifecycle & Security Rules
+
+- **Draft Isolation:** Draft posts (`status === 'draft'`) are private by default and readable only by authenticated editorial users.
+- **Scheduled Visibility:** Scheduled posts (`status === 'scheduled'`) are hidden from anonymous queries (including direct `findByID` requests) until `publishedAt <= now`. Once publication time has passed, they become publicly readable.
+- **Publication Invariants:** Scheduled posts require future dates; published posts cannot have future publication dates.
+- **Database-Layer Filtering:** Public read access controls apply directly as PostgreSQL `WHERE` clauses during database querying, preventing unpublished content from being retrieved into server memory or leaked via APIs.
+- **Author Privacy Protection:** User `email` fields have field-level access control restricting read access to authenticated sessions. Anonymous users fetching posts with populated author relationships receive the author `name` while `email` is sanitized and excluded.
+- **Local Media Storage Note:** Uploaded assets are saved to the local filesystem under `media/`. Production multi-instance deployments require external durable object storage (e.g., S3-compatible bucket via `@payloadcms/plugin-cloud-storage`).
+
+---
+
+## 10. Engineering Governance
 
 All automated agents and human contributors must adhere to [AGENTS.md](file:///home/lokeshverma/DevCrafters/foundry-studio/AGENTS.md):
 - Zero Git execution by autonomous agents.

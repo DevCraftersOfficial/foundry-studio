@@ -9,7 +9,7 @@ Welcome to **Foundry Studio**. This document outlines mandatory engineering conv
 Foundry Studio is an open-source, content publishing platform developed under **DevCrafters**.
 - **Approved Planning Baseline:** Next.js (App Router), TypeScript, Payload CMS, PostgreSQL, and Tailwind CSS.
 - **Budget Constraint:** Strict ₹0 initial budget. All tools, libraries, and runtime dependencies must be open-source and free for development and self-hosting.
-- **Phase Boundary (FS-001):** This milestone establishes project foundation, governance, and documentation only.
+- **Phase Boundary:** Features are executed strictly within authorized milestone boundaries.
 - **Strict Limitation:** No application code, database migrations, API routes, or external services are to be created without explicit authorization in a designated milestone.
 
 ---
@@ -27,7 +27,7 @@ Foundry Studio is an open-source, content publishing platform developed under **
 
 ---
 
-## 3. Security & Secret-Handling Rules
+## 3. Security & Secret-Handling Standards
 
 1. **Zero Secret Leakage:**
    - Real passwords, cryptographic secrets, API tokens, database connection strings with real credentials, and private keys must **NEVER** be committed or written into source files.
@@ -35,58 +35,81 @@ Foundry Studio is an open-source, content publishing platform developed under **
 2. **Template Hygiene (`.env.example`):**
    - `.env.example` must contain **placeholders only** (e.g., `your-secure-payload-secret-at-least-32-chars`, `postgresql://postgres:postgres@localhost:5432/foundry_studio`).
    - Never populate `.env.example` with production secrets or active local credentials.
-3. **Least Privilege & Safe Defaults:**
-   - Local database containers must not expose insecure open ports to the public internet.
-   - Default configurations must assume an untrusted environment.
+3. **Server-Side Authorization & Draft Isolation:**
+   - Enforce authorization strictly on the server (in Payload access control hooks, Next.js Server Actions, or Route Handlers). Client-side checks are cosmetic only.
+   - Drafts, revisions, and scheduled posts are private by default. Public queries and route handlers must never expose unpublished content.
+4. **Input Validation & Safe Media Handling:**
+   - Validate all user input server-side using schema validation.
+   - Validate file uploads against strict MIME-type allowlists and size limits before saving to storage.
+   - Render Lexical rich text safely using structured React components. Never use `dangerouslySetInnerHTML` with un-sanitized content.
+5. **Least Privilege & Safe Database Access:**
+   - Local database containers and database roles must adhere to least privilege and never expose insecure open ports to the public internet.
+   - Avoid raw or concatenated SQL queries; rely on Payload's typed ORM / Drizzle database adapter.
 
 ---
 
-## 4. Coding Conventions & Code Quality
+## 4. Architecture & Coding Conventions
 
-When application implementation begins in authorized milestones:
+### 4.1. Architecture Standards
+- **Modular Monolith:** Maintain co-location of Payload CMS 3.x and Next.js App Router within the unified single-process architecture.
+- **Supported Payload APIs:** Rely on official Payload APIs, hooks, and collection configurations. Do not bypass the CMS layer with custom database mutations unless an ADR explicitly authorizes it.
+- **Layered Responsibilities:** Keep business logic, access control, and data validation in the appropriate server-side layers (`src/collections/`, `src/lib/`, route handlers).
+- **Zero Unnecessary Abstractions:** Avoid premature generic frameworks or redundant utility wrappers. Depend on the existing stack and standard Node/TypeScript capabilities.
 
-- **Language:** TypeScript with strict type checking enabled (`strict: true` in `tsconfig.json`).
-- **Framework Conventions:** Next.js App Router paradigm. Prefer Server Components where feasible, utilizing Client Components (`'use client'`) only when interactive state or browser APIs are required.
-- **CMS Layer:** Payload CMS 3.x integration adhering to official architectural guidelines.
-- **Styling:** Tailwind CSS. Use semantic class naming and consistent design tokens.
+### 4.2. Code Quality & Styling
+- **Language:** TypeScript with strict type checking enabled (`strict: true` in `tsconfig.json`). No implicit `any`.
+- **Framework Conventions:** Next.js App Router paradigm. Prefer React Server Components (`RSC`). Restrict Client Components (`'use client'`) to interactive leaves requiring browser APIs or state.
+- **Design System Alignment:** Follow `docs/DESIGN_SYSTEM.md`. Use semantic design tokens and Tailwind CSS classes. No ad-hoc hex colors, inline styles, or arbitrary utility classes.
+- **Iconography:** Use pure SVG icons (Lucide or Heroicons). Strictly **no emojis as UI icons**.
 - **File Structure:**
-  - `docs/`: Architectural specifications, ADRs, project context, roadmap, and state records.
+  - `docs/`: Architectural specifications, ADRs, design system, and project state records.
   - `src/app/`: Next.js App Router pages, layouts, and route handlers.
   - `src/collections/`: Payload CMS collection configurations.
-  - `src/components/`: Reusable UI components.
+  - `src/components/`: Reusable UI components (`ui/` for primitives, `editorial/` for publication domain).
   - `src/lib/`: Shared utilities, database helpers, and client configurations.
+  - `.agents/skills/`: Workspace-scoped agent skills and design intelligence.
 
 ---
 
-## 5. Documentation Maintenance Rules
+## 5. Quality, Testing & Verification Requirements
 
-Documentation is a living asset and must remain strictly aligned with the codebase:
-
-1. **Keep `docs/PROJECT_STATE.md` Current:**
-   - Every completed milestone must record the exact work done, verification results, commands executed, and known risks.
-   - Never declare a milestone completed until all acceptance criteria are verified.
-2. **Preserve Truth in Documentation:**
-   - Do not claim features exist if they have only been planned or designed.
-   - Distinguish clearly between *Planning Baselines* and *Technically Verified Implementations*.
-3. **Architecture Decision Records (ADRs):**
-   - Any architectural shift, database change, or hosting decision requires a new ADR in `docs/adr/`.
-   - ADRs must document Context, Decision, Alternatives, Rationale, Consequences, and Unresolved Risks.
+- **TypeScript & Lint Verification:** Every milestone must pass `npx tsc --noEmit` and `npm run lint` with zero errors and zero warnings.
+- **Deterministic Verification:** Every implementation milestone must be validated using deterministic commands (unit tests, integration checks, schema validation, or production build tests).
+- **UI State Rigor:** Every UI view must provide explicit implementations for all standard states: **Ideal, Loading (skeleton loaders), Empty, Error, Success, and Permission Denied**.
+- **Accessibility Invariant:** Interfaces must meet WCAG 2.2 AA standards (minimum 4.5:1 text contrast, visible `:focus-visible` rings, screen reader landmarks/labels, and `@media (prefers-reduced-motion)` support).
+- **Migration Reviews:** Database migrations must be reviewed before execution. Rollback (`down`) operations must be inspected for destructive data loss potential.
+- **Documented Results:** Commands executed and actual outputs must be logged in `docs/PROJECT_STATE.md`. If a check cannot be run, report the exact blocker honestly.
 
 ---
 
-## 6. Testing & Verification Requirements
+## 6. Delivery Workflow for Autonomous Agents
 
-- **Verification Before Sign-Off:** Every milestone must be validated using deterministic commands (e.g., type checks, linter checks, test suites, or schema validation).
-- **Documented Results:** Commands executed and their actual outputs must be logged in `docs/PROJECT_STATE.md`.
-- **Honest Reporting:** If a test or check cannot be run (e.g., dependencies not yet installed), explicitly state the reason rather than fabricating results.
+When assigned any milestone task:
+1. **Inspect Before Modifying:** Read `AGENTS.md`, `docs/PROJECT_CONTEXT.md`, `docs/PROJECT_STATE.md`, and relevant ADRs before modifying files. Confirm the task matches the **Next Authorized Task** in `docs/PROJECT_STATE.md`.
+2. **Define Acceptance Criteria First:** Establish explicit verification criteria before writing code.
+3. **Execute Incrementally:** Make minimal, deliberate edits matching the authorized milestone scope. Avoid feature creep.
+4. **Run Verification Commands:** Validate changes deterministically (`tsc`, `lint`, test suites, builds).
+5. **Update Living Documentation:** Update `docs/PROJECT_STATE.md` with work completed, verification evidence, and outstanding risks.
+6. **Stop for Approval:** Do not declare a milestone completed when acceptance criteria fail. Stop and wait for human CTO review before proceeding to subsequent tasks.
 
 ---
 
-## 7. Instructions for Future Implementation Tasks
+## 7. Installed Agent Skills & Usage Guidelines
 
-When assigned a new milestone (e.g., FS-002, FS-003):
-1. Review `AGENTS.md`, `docs/PROJECT_CONTEXT.md`, and `docs/PROJECT_STATE.md` before making any modifications.
-2. Verify that the task matches the **Next Authorized Task** specified in `docs/PROJECT_STATE.md`.
-3. Adhere strictly to the ₹0 budget and open-source tooling constraints.
-4. Stop execution and obtain CTO sign-off upon completing the assigned milestone before proceeding to subsequent tasks.
+Foundry Studio provides two project-scoped skills installed in `.agents/skills/`:
 
+### 7.1. `design-taste-frontend`
+- **Location:** `.agents/skills/design-taste-frontend/SKILL.md`
+- **Purpose:** Art direction, anti-slop frontend principles, and layout logic for editorial publications and app screens.
+- **Invocation:** Read the skill file and execute the local draw script when seeking art direction:
+  ```bash
+  node .agents/skills/design-taste-frontend/scripts/draw.mjs --sector agency --brief "<brief>" --options 3
+  ```
+
+### 7.2. `ui-ux-pro-max`
+- **Location:** `.agents/skills/ui-ux-pro-max/SKILL.md`
+- **Purpose:** Design system intelligence, WCAG 2.2 AA checklists, semantic token generation, UX guidelines, and responsive rules.
+- **Invocation:** Read the skill file and execute the local search script:
+  ```bash
+  python3 .agents/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain ux
+  ```

@@ -32,46 +32,32 @@ This document outlines the phased development roadmap, milestone dependencies, m
 
 ## 2. Milestone Details & Acceptance Criteria
 
-### Milestone FS-001: Project Foundation & Engineering Governance (Current)
-- **Status:** Complete
+### Milestone FS-001: Project Foundation & Engineering Governance
+- **Status:** Complete (Accepted)
 - **Dependencies:** None
 - **Objective:** Establish the project repository foundation, conventions, security constraints, and comprehensive documentation without introducing premature code.
-- **Measurable Acceptance Criteria:**
-  1. `AGENTS.md`, `README.md`, `docs/PROJECT_CONTEXT.md`, `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, and 3 ADRs created.
-  2. Safe `.env.example` with zero actual secrets.
-  3. Comprehensive `.gitignore` protecting secrets and build outputs.
-  4. Local environment audited (Node.js 22+, Docker, Docker Compose verified).
-  5. Strict adherence to zero-git operations and zero out-of-scope code.
-- **Review Gate:** CTO sign-off on foundation documentation.
 
 ---
 
 ### Milestone FS-002: Core Scaffolding & Local Database Environment
-- **Status:** Pending Authorization
+- **Status:** Complete (Accepted, including FS-002-V and FS-002.5)
 - **Dependencies:** FS-001 sign-off
 - **Objective:** Initialize Next.js with TypeScript and Tailwind CSS, embed Payload CMS 3.x, and provide a containerized local PostgreSQL database via Docker Compose.
-- **Measurable Acceptance Criteria:**
-  1. Next.js App Router application bootstrapped with strict TypeScript.
-  2. Payload CMS 3.x embedded natively into Next.js route handlers.
-  3. `docker-compose.yml` configured for PostgreSQL with persistent local volume and health checks.
-  4. Local database connection established and verified via `@payloadcms/db-postgres`.
-  5. Admin login route accessible at `/admin` on local dev server.
-  6. Zero paid dependencies; all local development runs at ₹0 cost.
-- **Review Gate:** Verified local start (`npm run dev`) and successful admin panel access.
 
 ---
 
 ### Milestone FS-003: Content Models & Media Management Pipeline
-- **Status:** Planned
-- **Dependencies:** FS-002
-- **Objective:** Implement core publishing collections (`Posts`, `Categories`, `Tags`, `Media`, `Users`) with robust validation and image processing.
+- **Status:** Complete & Ready for Review
+- **Dependencies:** FS-002.5 sign-off
+- **Objective:** Implement core publishing collections (`Posts`, `Categories`, `Tags`, `Media`, `Users`) with robust validation, publishing lifecycle rules, database migrations, and image processing.
 - **Measurable Acceptance Criteria:**
   1. TypeScript collection schemas configured for `Posts`, `Categories`, `Tags`, `Media`, and `Users`.
-  2. Rich text editor configured (Lexical) supporting headings, quotes, lists, links, and embedded media.
-  3. Media upload collection with mime-type validation, size limits, and automatic thumbnail generation.
-  4. Database migrations generated and verified against PostgreSQL.
-  5. Seed script created for development testing with sample data.
-- **Review Gate:** Verified creation, editing, and retrieval of sample posts and media in admin UI.
+  2. Rich text editor configured (Lexical) storing structured JSON AST safely without unsafe HTML rendering.
+  3. Media upload collection with mime-type validation (JPEG, PNG, WebP, AVIF, GIF, SVG), 10MB file limit, and automatic variant generation (thumbnail, card, feature).
+  4. Database migration generated (`20261022_170247_add_publishing_domain`) and applied safely with complete idempotency.
+  5. Publishing lifecycle security enforced: Drafts private by default, scheduled posts restricted until publication date, and author email privacy protected.
+  6. Integration test suite passing with 18 verified tests across models, security boundaries, and upload limits.
+- **Review Gate:** CTO sign-off on content models, migration, and access control verification.
 
 ---
 
