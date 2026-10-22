@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSiteUrl } from '@/lib/site-url'
 import './styles.css'
 
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
     default: 'Foundry Studio — Independent Journalism & Publishing',
   },
   description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL(getSiteUrl()),
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {
@@ -25,6 +26,10 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+
         <header className="masthead" role="banner">
           <div className="container">
             <div className="masthead-topbar">
@@ -35,8 +40,8 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
               </Link>
             </div>
             <div className="masthead-brand">
-              <Link href="/">
-                <h1 className="masthead-title">FOUNDRY STUDIO</h1>
+              <Link href="/" aria-label="Foundry Studio Front Page">
+                <div className="masthead-title">FOUNDRY STUDIO</div>
               </Link>
               <p className="masthead-tagline">Craftsmanship, Typography, and Editorial Precision</p>
             </div>
@@ -56,7 +61,11 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
             <div className="footer-links">
               <Link href="/">Front Page</Link>
               <Link href="/admin">Editorial Workspace</Link>
-              <a href="https://github.com/DevCraftersOfficial/foundry-studio" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://github.com/DevCraftersOfficial/foundry-studio"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Source
               </a>
             </div>

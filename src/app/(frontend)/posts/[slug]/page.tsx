@@ -8,6 +8,8 @@ import { getPayload } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Tag, Media, User } from '@/payload-types'
 import { RichText } from '@/components/editorial/RichText'
+import { getSiteUrl } from '@/lib/site-url'
+import { getPublicPostWhere, isPostPubliclyEligible } from '@/lib/publishing'
 
 type PageProps = {
   params: Promise<{
@@ -74,10 +76,7 @@ export async function getPost(
       return null
     }
 
-    const isPublic =
-      post.status === 'published' &&
-      post.publishedAt &&
-      new Date(post.publishedAt).getTime() <= Date.now()
+    const isPublic = isPostPubliclyEligible(post)
 
     if (isPublic) {
       return post
@@ -113,16 +112,7 @@ export async function getPost(
             equals: slug,
           },
         },
-        {
-          status: {
-            equals: 'published',
-          },
-        },
-        {
-          publishedAt: {
-            less_than_equal: now,
-          },
-        },
+        getPublicPostWhere(now),
       ],
     },
     depth: 2,
@@ -134,12 +124,22 @@ export async function getPost(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const draft = await draftMode()
-  const post = await getPost(slug, draft.isEnabled)
+  let isDraft = false
+  try {
+    const draft = await draftMode()
+    isDraft = draft.isEnabled
+  } catch {
+    isDraft = false
+  }
+  const post = await getPost(slug, isDraft)
 
   if (!post) {
     return {
       title: 'Story Not Found',
+      robots: {
+        index: false,
+        follow: false,
+      },
     }
   }
 
@@ -160,6 +160,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    robots: isDraft ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
       title,
       description,
@@ -180,8 +181,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PostDetailPage({ params }: PageProps) {
   const { slug } = await params
-  const draft = await draftMode()
-  const isDraftMode = draft.isEnabled
+  let isDraftMode = false
+  try {
+    const draft = await draftMode()
+    isDraftMode = draft.isEnabled
+  } catch {
+    isDraftMode = false
+  }
   const post = await getPost(slug, isDraftMode)
 
   if (!post) {
@@ -207,8 +213,45 @@ export default async function PostDetailPage({ params }: PageProps) {
     (tag): tag is Tag => typeof tag === 'object' && tag !== null && 'name' in tag,
   )
 
+  const siteUrl = getSiteUrl()
+  const articleUrl = `${siteUrl}/posts/${post.slug}`
+  const imageUrl = featuredMedia?.url
+    ? (featuredMedia.url.startsWith('http') ? featuredMedia.url : `${siteUrl}${featuredMedia.url}`)
+    : undefined
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: post.title,
+    ...(post.excerpt ? { description: post.excerpt } : {}),
+    ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+    ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': articleUrl,
+    },
+    author: {
+      '@type': 'Person',
+      name: authorName,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Foundry Studio',
+      url: siteUrl,
+    },
+    ...(imageUrl ? { image: [imageUrl] } : {}),
+  }
+
   return (
     <>
+      {!isDraftMode && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+          }}
+        />
+      )}
       {isDraftMode && (
         <div
           role="status"

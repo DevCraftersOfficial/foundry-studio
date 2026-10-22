@@ -585,15 +585,14 @@ describe('FS-003 Publishing Domain & Access Control', () => {
       expect(anonPublished.docs[0].title).toBe('Test Live Published Post')
     })
 
-    it('makes scheduled posts eligible for public reading once publication date has passed', async () => {
+    it('strictly denies anonymous readers access to scheduled posts even if publication date has passed', async () => {
       const anonMatured = await payload.find({
         collection: 'posts',
         where: { slug: { equals: 'test-matured-scheduled-post' } },
         overrideAccess: false,
         user: null,
       })
-      expect(anonMatured.docs.length).toBe(1)
-      expect(anonMatured.docs[0].id).toBe(pastScheduledPost.id)
+      expect(anonMatured.docs.length).toBe(0)
     })
 
     it('protects author email privacy from anonymous readers on populated relationships', async () => {
@@ -614,7 +613,7 @@ describe('FS-003 Publishing Domain & Access Control', () => {
       expect((post.author as User).email).toBeUndefined()
     })
 
-    it('allows anonymous findByID access to live published and matured scheduled posts', async () => {
+    it('allows anonymous findByID access only to live published posts and denies scheduled posts', async () => {
       const directPublished = await payload.findByID({
         collection: 'posts',
         id: publishedPost.id,
@@ -624,14 +623,14 @@ describe('FS-003 Publishing Domain & Access Control', () => {
       expect(directPublished).toBeDefined()
       expect(directPublished.id).toBe(publishedPost.id)
 
-      const directMatured = await payload.findByID({
-        collection: 'posts',
-        id: pastScheduledPost.id,
-        overrideAccess: false,
-        user: null,
-      })
-      expect(directMatured).toBeDefined()
-      expect(directMatured.id).toBe(pastScheduledPost.id)
+      await expect(
+        payload.findByID({
+          collection: 'posts',
+          id: pastScheduledPost.id,
+          overrideAccess: false,
+          user: null,
+        }),
+      ).rejects.toThrow()
     })
   })
 

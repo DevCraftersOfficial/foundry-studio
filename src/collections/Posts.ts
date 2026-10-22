@@ -2,6 +2,7 @@ import type { CollectionConfig, Where } from 'payload'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { APIError } from 'payload'
 import { formatSlug, isValidSlug } from '../lib/slug'
+import { getPublicPostWhere } from '../lib/publishing'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
@@ -17,46 +18,17 @@ export const Posts: CollectionConfig = {
     },
   },
   access: {
-    // Public readers can only query published posts or scheduled posts whose time has passed.
-    // Editors and Admins have full read access to drafts, in-review, scheduled, and published posts.
-    // Authors can only read published posts and their own authored posts.
+    // Public readers can ONLY query published posts whose publication date has passed.
+    // Drafts, in-review, scheduled, and archived posts are strictly private.
+    // Editors and Admins have full read access to all editorial states.
+    // Authors can read published posts and their own authored posts across states.
     read: ({ req: { user } }) => {
       if (user?.role === 'admin' || user?.role === 'editor') {
         return true
       }
 
       const now = new Date().toISOString()
-
-      const publicWhere: Where[] = [
-        {
-          and: [
-            {
-              status: {
-                equals: 'published',
-              },
-            },
-            {
-              publishedAt: {
-                less_than_equal: now,
-              },
-            },
-          ],
-        },
-        {
-          and: [
-            {
-              status: {
-                equals: 'scheduled',
-              },
-            },
-            {
-              publishedAt: {
-                less_than_equal: now,
-              },
-            },
-          ],
-        },
-      ]
+      const publicWhere = getPublicPostWhere(now)
 
       if (user?.role === 'author') {
         return {
@@ -66,14 +38,12 @@ export const Posts: CollectionConfig = {
                 equals: user.id,
               },
             },
-            ...publicWhere,
+            publicWhere,
           ],
         }
       }
 
-      return {
-        or: publicWhere,
-      }
+      return publicWhere
     },
     create: ({ req: { user } }) => Boolean(user),
     update: ({ req: { user } }) => {

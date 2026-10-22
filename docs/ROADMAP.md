@@ -53,7 +53,7 @@ This document outlines the phased development roadmap, milestone dependencies, m
 - **Measurable Acceptance Criteria:**
   1. TypeScript collection schemas configured for `Posts`, `Categories`, `Tags`, `Media`, and `Users`.
   2. Rich text editor configured (Lexical) storing structured JSON AST safely without unsafe HTML rendering.
-  3. Media upload collection with mime-type validation (JPEG, PNG, WebP, AVIF, GIF, SVG), 10MB file limit, and automatic variant generation (thumbnail, card, feature).
+  3. Media upload collection with mime-type validation (JPEG, PNG, WebP, AVIF, GIF — SVG strictly rejected to eliminate stored XSS vectors), 10MB file limit, and automatic variant generation (thumbnail, card, feature).
   4. Database migration generated (`20261022_170247_add_publishing_domain`) and applied safely with complete idempotency.
   5. Publishing lifecycle security enforced: Drafts private by default, scheduled posts restricted until publication date, and author email privacy protected.
   6. Integration test suite passing with 18 verified tests across models, security boundaries, and upload limits.
@@ -77,17 +77,20 @@ This document outlines the phased development roadmap, milestone dependencies, m
 
 ---
 
-### Milestone FS-005: Public Reader Experience & SEO Engine
-- **Status:** In Progress (MVP Reader Surface Delivered)
+### Milestone FS-005: Public Reader Polish, SEO Validation, and Accessibility Audits
+- **Status:** Complete (Implemented & Verified)
 - **Dependencies:** FS-004
-- **Objective:** Build the public-facing content publishing interface with fast Server Components, semantic markup, and automated SEO/OpenGraph metadata.
+- **Objective:** Verify and finish the public publishing experience with semantic markup, robust SEO/OpenGraph metadata, sitemap/robots discoverability, WCAG 2.2 AA accessibility, and content rendering safety.
 - **Measurable Acceptance Criteria:**
-  1. Responsive editorial homepage featuring masthead, lead dispatch, category navigation, and latest stories grid. (Delivered)
-  2. Article detail pages with dynamic SEO metadata, OpenGraph tags, canonical URLs, and category/tag pills. (Delivered)
-  3. Safe Lexical rich text AST rendering component with zero `dangerouslySetInnerHTML`. (Delivered)
-  4. Category archive views with dynamic filtering and published-state enforcement. (Delivered)
-  5. Swiss editorial design system implementation adhering to `docs/DESIGN_SYSTEM.md` and WCAG 2.2 AA. (Delivered)
-  6. Production Next.js Turbopack build succeeds cleanly with static and dynamic prerendered routes. (Verified)
+  1. Responsive editorial homepage featuring Swiss typography, single semantic `<h1>`, skip link, masthead, category nav, and responsive image sizing. (Verified)
+  2. Article detail pages with dynamic SEO metadata, OpenGraph tags, Twitter cards, canonical URLs, and schema.org `NewsArticle` JSON-LD structured data. (Verified)
+  3. Safe Lexical rich text AST rendering component with link URL protocol sanitization (blocking `javascript:`/dangerous schemes) and heading demotion to preserve single-`<h1>` document outline. (Verified)
+  4. Dynamic `sitemap.xml` strictly indexing published posts (`publishedAt <= now`) and categories while strictly excluding drafts, in-review, archived, and future-scheduled posts. (Verified)
+  5. Dynamic `robots.txt` configured with public index rules and disallowing admin, preview, and API routes. (Verified)
+  6. Category archive views with dynamic filtering and published-state enforcement. (Verified)
+  7. Accessibility enhancements: skip-to-content link, high-contrast `:focus-visible` rings, screen reader landmarks, and reduced-motion support. (Verified)
+  8. 83 automated integration tests passing across 5 test suites (`npm run test:int`), 0 lint warnings, 0 type errors, clean Next.js Turbopack build, and live browser audit verified. (Verified)
+- **Review Gate:** CTO sign-off on reader experience, SEO engine, and accessibility polish.
 
 ---
 

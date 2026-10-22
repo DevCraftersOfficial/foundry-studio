@@ -1,9 +1,24 @@
 import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import type { Metadata } from 'next'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Media, User } from '@/payload-types'
+
+export const metadata: Metadata = {
+  title: 'Foundry Studio — Independent Journalism & Publishing',
+  description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Foundry Studio — Independent Journalism & Publishing',
+    description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
+    type: 'website',
+    url: '/',
+  },
+}
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return ''
@@ -18,29 +33,18 @@ function formatDate(dateStr?: string | null): string {
   }
 }
 
+import { getPublicPostWhere } from '@/lib/publishing'
+
 export default async function HomePage() {
   const payloadConfig = await config
   const payload = await getPayload({ config: payloadConfig })
 
   const now = new Date().toISOString()
 
-  // 1. Fetch published posts
+  // 1. Fetch published posts using canonical eligibility filter
   const postsData = await payload.find({
     collection: 'posts',
-    where: {
-      and: [
-        {
-          status: {
-            equals: 'published',
-          },
-        },
-        {
-          publishedAt: {
-            less_than_equal: now,
-          },
-        },
-      ],
-    },
+    where: getPublicPostWhere(now),
     sort: '-publishedAt',
     depth: 2,
     limit: 10,
@@ -95,9 +99,9 @@ export default async function HomePage() {
                     {formatDate(featuredPost.publishedAt)}
                   </time>
                 </div>
-                <h2 className="hero-title">
+                <h1 className="hero-title">
                   <Link href={`/posts/${featuredPost.slug}`}>{featuredPost.title}</Link>
-                </h2>
+                </h1>
                 {featuredPost.excerpt && (
                   <p className="hero-excerpt">{featuredPost.excerpt}</p>
                 )}
@@ -116,6 +120,7 @@ export default async function HomePage() {
                     src={(featuredPost.featuredImage as Media).url || ''}
                     alt={(featuredPost.featuredImage as Media).alt || featuredPost.title}
                     fill
+                    sizes="(max-width: 900px) 100vw, 50vw"
                     className="hero-image"
                     priority
                   />
@@ -146,7 +151,7 @@ export default async function HomePage() {
         {regularPosts.length > 0 && (
           <section className="articles-section" aria-label="Recent Stories">
             <div className="section-header">
-              <h3 className="section-title">Latest Dispatches</h3>
+              <h2 className="section-title">Latest Dispatches</h2>
             </div>
             <div className="article-grid">
               {regularPosts.map((post) => {
@@ -177,9 +182,9 @@ export default async function HomePage() {
                         {formatDate(post.publishedAt)}
                       </time>
                     </div>
-                    <h4 className="article-card-title">
+                    <h3 className="article-card-title">
                       <Link href={`/posts/${post.slug}`}>{post.title}</Link>
-                    </h4>
+                    </h3>
                     {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
                     <div className="article-card-footer">
                       <span>By {authorName}</span>
@@ -195,7 +200,7 @@ export default async function HomePage() {
         {/* Empty State */}
         {posts.length === 0 && (
           <div className="empty-state">
-            <h2 className="empty-state-title">The Foundry Presses are Preparing</h2>
+            <h1 className="empty-state-title">The Foundry Presses are Preparing</h1>
             <p className="empty-state-text">
               No articles are currently live. Editorial writers and editors can log in to the editorial workspace to draft, review, and release inaugural stories.
             </p>

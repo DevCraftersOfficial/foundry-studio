@@ -6,6 +6,7 @@ import type { Metadata } from 'next'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
 import type { Post, Category, Media, User } from '@/payload-types'
+import { getPublicPostWhere } from '@/lib/publishing'
 
 type PageProps = {
   params: Promise<{
@@ -40,13 +41,33 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (categoryData.docs.length === 0) {
     return {
       title: 'Category Not Found',
+      robots: {
+        index: false,
+        follow: false,
+      },
     }
   }
 
   const category = categoryData.docs[0] as Category
+  const description = category.description || `Read stories published in ${category.name} on Foundry Studio.`
+
   return {
     title: `${category.name} Section`,
-    description: category.description || `Read stories published in ${category.name} on Foundry Studio.`,
+    description,
+    alternates: {
+      canonical: `/category/${slug}`,
+    },
+    openGraph: {
+      title: `${category.name} Section | Foundry Studio`,
+      description,
+      type: 'website',
+      url: `/category/${slug}`,
+    },
+    twitter: {
+      card: 'summary',
+      title: `${category.name} Section | Foundry Studio`,
+      description,
+    },
   }
 }
 
@@ -69,17 +90,12 @@ export default async function CategoryPage({ params }: PageProps) {
 
   const category = categoryData.docs[0] as Category
 
-  // 2. Fetch all published posts in this category
+  // 2. Fetch all published posts in this category using canonical filter
   const postsData = await payload.find({
     collection: 'posts',
     where: {
       and: [
-        {
-          status: { equals: 'published' },
-        },
-        {
-          publishedAt: { less_than_equal: now },
-        },
+        getPublicPostWhere(now),
         {
           categories: { contains: category.id },
         },

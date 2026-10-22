@@ -2,7 +2,8 @@ import React from 'react'
 
 export default function Loading() {
   return (
-    <div className="container" style={{ padding: '4rem 1.5rem' }}>
+    <div className="container" style={{ padding: '4rem 1.5rem' }} role="status" aria-label="Loading editorial content">
+      <span className="sr-only">Loading editorial dispatches...</span>
       <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
         <div
           style={{

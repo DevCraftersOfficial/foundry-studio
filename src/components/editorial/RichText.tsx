@@ -49,8 +49,31 @@ function renderFormattedText(text: string, format?: number | string): React.Reac
   return formatted
 }
 
+function sanitizeUrl(rawUrl?: string): string {
+  if (!rawUrl) return '#'
+  const trimmed = rawUrl.trim()
+  if (
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('#') ||
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('../')
+  ) {
+    return trimmed
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    if (['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)) {
+      return trimmed
+    }
+  } catch {
+    return '#'
+  }
+  return '#'
+}
+
 function renderNode(node: LexicalNode, index: number): React.ReactNode {
-  if (!node) return null
+  if (!node || typeof node !== 'object') return null
 
   // 1. Text Leaf
   if (node.type === 'text') {
@@ -62,7 +85,9 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
   }
 
   // Render children recursively
-  const children = node.children?.map((child, childIdx) => renderNode(child, childIdx))
+  const children = Array.isArray(node.children)
+    ? node.children.map((child, childIdx) => renderNode(child, childIdx))
+    : null
 
   // 2. Element Nodes
   switch (node.type) {
@@ -75,8 +100,8 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
 
     case 'heading': {
       const tag = node.tag || 'h2'
-      if (tag === 'h1') return <h1 key={index} className="prose-h1">{children}</h1>
-      if (tag === 'h2') return <h2 key={index} className="prose-h2">{children}</h2>
+      // Demote rich-text h1 to h2 to preserve single-h1 heading hierarchy for the document
+      if (tag === 'h1' || tag === 'h2') return <h2 key={index} className="prose-h2">{children}</h2>
       if (tag === 'h3') return <h3 key={index} className="prose-h3">{children}</h3>
       if (tag === 'h4') return <h4 key={index} className="prose-h4">{children}</h4>
       return <h2 key={index} className="prose-h2">{children}</h2>
@@ -112,12 +137,13 @@ function renderNode(node: LexicalNode, index: number): React.ReactNode {
       )
 
     case 'link': {
-      const url = node.url || '#'
-      const isExternal = url.startsWith('http://') || url.startsWith('https://')
+      const rawUrl = node.url || '#'
+      const safeUrl = sanitizeUrl(rawUrl)
+      const isExternal = safeUrl.startsWith('http://') || safeUrl.startsWith('https://')
       return (
         <a
           key={index}
-          href={url}
+          href={safeUrl}
           className="prose-link"
           rel={isExternal ? 'noopener noreferrer' : undefined}
           target={isExternal ? '_blank' : undefined}
