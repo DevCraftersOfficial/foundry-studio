@@ -153,9 +153,17 @@ This document outlines the phased development roadmap, milestone dependencies, m
 ---
 
 ### Milestone FS-UI-004: Editorial Workspace & Admin Login Customization (Phase 3)
-- **Status:** Planned
+- **Status:** Complete & Ready for Review
 - **Dependencies:** FS-UI-003
-- **Objective:** Brand Payload CMS administrative login with DevCrafters endorsed identity and customize studio navigation header.
+- **Objective:** Brand Payload CMS administrative login with DevCrafters endorsed identity, add Studio icon in StepNav, customize sidebar navigation, and provide contextual editorial workflow guidance.
+- **Measurable Acceptance Criteria:**
+  1. Accessible SVG `AdminLogo` component with DevCrafters Hexagon mark (`#EA580C`) and dark ink wordmark on login screen (`/admin/login`). (Verified)
+  2. Compact 25×25 SVG `AdminIcon` in StepNav and AppHeader breadcrumbs. (Verified)
+  3. Reusable `AdminNavBrand` anchored via `beforeNavLinks` at top of sidebar navigation. (Verified)
+  4. Restrained `custom.scss` stylesheet applying DevCrafters Flame Orange focus rings and active navigation indicators without brittle DOM hacks. (Verified)
+  5. Enhanced field workflow guidance on `Posts.status`, `Posts.publishedAt`, `Posts.author`, and `Media.alt`. (Verified)
+  6. Automated integration tests in `tests/int/payload-admin-branding.int.spec.ts` (128/128 suite tests passing), `npx tsc --noEmit` clean, `npm run lint` clean, standalone build passing, and browser audit verified with screenshots. (Verified)
+- **Review Gate:** CTO sign-off on Phase 3 before authorizing Phase 4 (Accessibility & Visual Regression Gating).
 
 ---
 

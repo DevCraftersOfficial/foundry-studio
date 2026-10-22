@@ -1,13 +1,36 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { Newsreader, Manrope, JetBrains_Mono } from 'next/font/google'
 import { getSiteUrl } from '@/lib/site-url'
+import { BrandLockup } from '@/components/ui/BrandLockup'
 import './styles.css'
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-newsreader',
+  style: ['normal', 'italic'],
+})
+
+const manrope = Manrope({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-manrope',
+  weight: ['400', '500', '600', '700', '800'],
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jetbrains-mono',
+  weight: ['400', '500', '600'],
+})
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Foundry Studio',
-    default: 'Foundry Studio — Independent Journalism & Publishing',
+    template: '%s | Foundry Studio by DevCrafters',
+    default: 'Foundry Studio by DevCrafters — Independent Journalism & Publishing',
   },
   description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
   metadataBase: new URL(getSiteUrl()),
@@ -24,7 +47,10 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   }).format(new Date())
 
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${newsreader.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
+    >
       <body>
         <a href="#main-content" className="skip-link">
           Skip to main content
@@ -40,9 +66,7 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
               </Link>
             </div>
             <div className="masthead-brand">
-              <Link href="/" aria-label="Foundry Studio Front Page">
-                <div className="masthead-title">FOUNDRY STUDIO</div>
-              </Link>
+              <BrandLockup variant="masthead" href="/" />
               <p className="masthead-tagline">Craftsmanship, Typography, and Editorial Precision</p>
             </div>
           </div>
@@ -54,10 +78,7 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
 
         <footer className="site-footer" role="contentinfo">
           <div className="container footer-inner">
-            <div>
-              <div className="footer-brand-title">FOUNDRY STUDIO</div>
-              <p className="footer-desc">An Open-Source Publishing Platform by DevCrafters</p>
-            </div>
+            <BrandLockup variant="footer" href="/" />
             <div className="footer-links">
               <Link href="/">Front Page</Link>
               <Link href="/admin">Editorial Workspace</Link>
@@ -75,3 +96,4 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
     </html>
   )
 }
+

@@ -28,6 +28,23 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    meta: {
+      titleSuffix: ' — Foundry Studio by DevCrafters',
+      icons: [
+        {
+          rel: 'icon',
+          type: 'image/svg+xml',
+          url: '/favicon.svg',
+        },
+      ],
+    },
+    components: {
+      graphics: {
+        Logo: '@/components/admin/Logo#AdminLogo',
+        Icon: '@/components/admin/Icon#AdminIcon',
+      },
+      beforeNavLinks: ['@/components/admin/NavBrand#AdminNavBrand'],
+    },
   },
   collections: [Users, Media, Posts, Categories, Tags],
   editor: lexicalEditor(),

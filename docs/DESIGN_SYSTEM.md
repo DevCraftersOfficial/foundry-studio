@@ -201,6 +201,23 @@ Deterministic reading-time calculation for editorial journalism:
 - **Editorial Standfirst:** Stylized lead paragraph (`.article-standfirst`) in italicized serif with a 3px DevCrafters orange border rule (`--brand-accent`).
 - **Reading Measure:** Article body constrained to `68ch` with 1.8 line-height for optimal reading ergonomics.
 
+#### 3.3.7. Payload Admin Editorial Workspace Branding
+- **Architectural Approach:** Employs Payload CMS 3.x's official extension points (`admin.components.graphics`, `admin.components.beforeNavLinks`, `admin.meta`, and `custom.scss`) without brittle DOM hacking or global CSS monkey-patching.
+- **Components:**
+  - `AdminLogo` (`src/components/admin/Logo.tsx`): Responsive SVG brand lockup displayed on admin login (`/admin/login`) featuring the DevCrafters geometric hexagon bracket in Flame Orange (`#EA580C`) and obsidian wordmark (`var(--theme-elevation-1000)`). Fully light/dark mode responsive.
+  - `AdminIcon` (`src/components/admin/Icon.tsx`): Compact 25×25 SVG icon rendered in the authenticated workspace header and StepNav breadcrumbs.
+  - `AdminNavBrand` (`src/components/admin/NavBrand.tsx`): Anchored brand stamp rendered via `beforeNavLinks` at the top of the sidebar navigation.
+  - `Favicon` (`public/favicon.svg`): Standalone SVG favicon for browser tabs across both public and administrative routes.
+- **Restrained Admin Stylesheet (`src/app/(payload)/custom.scss`):**
+  - DevCrafters Flame Orange accent focus outlines (`:focus-visible`).
+  - Active collection link indicators with 3px brand border rules.
+  - Responsive SVG scaling for brand marks across viewports.
+- **Editorial Workflow Guidance:**
+  - `Posts.status`: Step-by-step description of editorial lifecycle (`draft` → `in_review` → `scheduled` → `published` → `archived`).
+  - `Posts.publishedAt`: Validation guidance explaining scheduled future requirements versus immediate publication auto-dating.
+  - `Posts.author`: Attribution boundaries for authors versus editors/admins.
+  - `Media.alt`: WCAG 2.2 AA accessibility instructions for content creators.
+
 | Token | Size | Line Height | Tracking | Recommended Use |
 | :--- | :--- | :--- | :--- | :--- |
 | `text-display` | 3.5rem (56px) | 1.1 | -0.025em | Main publication masthead / Hero title |

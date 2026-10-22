@@ -215,6 +215,8 @@ export const Posts: CollectionConfig = {
       ],
       admin: {
         position: 'sidebar',
+        description:
+          'Editorial lifecycle: Draft (in-progress) → In Review (pending editor approval) → Scheduled (queued for future date) → Published (live publicly) → Archived (delisted).',
       },
     },
     {
@@ -226,6 +228,8 @@ export const Posts: CollectionConfig = {
         date: {
           pickerAppearance: 'dayAndTime',
         },
+        description:
+          'Required future timestamp for Scheduled posts; auto-set to current time upon publishing if left empty.',
       },
     },
     {
@@ -235,6 +239,8 @@ export const Posts: CollectionConfig = {
       hasMany: false,
       admin: {
         position: 'sidebar',
+        description:
+          'Author attribution. Authors can only set themselves; Editors and Admins may reassign attribution.',
       },
     },
     {

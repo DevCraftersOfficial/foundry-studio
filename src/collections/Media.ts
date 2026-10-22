@@ -46,12 +46,18 @@ export const Media: CollectionConfig = {
       type: 'text',
       required: true,
       label: 'Alt Text (for accessibility)',
+      admin: {
+        description: 'Required screen-reader description of image content to satisfy WCAG 2.2 AA accessibility standards.',
+      },
     },
     {
       name: 'caption',
       type: 'text',
       required: false,
       label: 'Caption / Credit',
+      admin: {
+        description: 'Optional editorial caption or photojournalism attribution displayed below the media.',
+      },
     },
   ],
   upload: {

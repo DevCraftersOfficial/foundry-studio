@@ -1,0 +1,54 @@
+// ==============================================================================
+// Foundry Studio by DevCrafters — Payload Admin Restrained Brand Stylesheet
+// ==============================================================================
+// Applies restrained brand-consistent styling through Payload's official
+// custom.scss extension point without brittle global overrides.
+
+// DevCrafters brand tokens
+$brand-orange: #EA580C;
+$brand-orange-hover: #C2410C;
+$brand-orange-subtle: rgba(234, 88, 12, 0.08);
+
+// Brand Logo & Icon sizing and layout
+.foundry-admin-logo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  transition: opacity 150ms ease;
+
+  &:hover {
+    opacity: 0.95;
+  }
+}
+
+.foundry-admin-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.foundry-admin-nav-brand {
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: var(--theme-elevation-50, rgba(0, 0, 0, 0.02));
+  }
+
+  a:focus-visible {
+    outline: 2px solid $brand-orange;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+// Brand accent focus rings on admin interactive controls
+:focus-visible {
+  outline-color: $brand-orange !important;
+}
+
+// Subtle brand accent on active sidebar collection links
+.nav__link.active,
+.nav-group__link.active {
+  border-left: 3px solid $brand-orange !important;
+}
