@@ -45,14 +45,14 @@ describe('FS-UI-002: BrandLockup & StatusBadge Primitives', () => {
       expect(html).toContain('by DevCrafters')
     })
 
-    it('renders the footer variant with full open-source endorsement', () => {
+    it('renders the footer variant with full brand endorsement', () => {
       const html = renderToStaticMarkup(
         React.createElement(BrandLockup, { variant: 'footer', href: '/' })
       )
 
       expect(html).toContain('brand-lockup--footer')
       expect(html).toContain('FOUNDRY STUDIO')
-      expect(html).toContain('An Open-Source Editorial Publishing Platform')
+      expect(html).toContain('Editorial Publishing Platform')
       expect(html).toContain('DevCrafters')
     })
 

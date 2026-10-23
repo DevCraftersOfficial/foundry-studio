@@ -122,7 +122,7 @@ export function BrandLockup({
               )}
             </div>
             <div className="brand-lockup__footer-endorsement">
-              <span>An Open-Source Editorial Publishing Platform</span>
+              <span>Editorial Publishing Platform</span>
               <span className="brand-lockup__parent-credit">
                 by <strong>DevCrafters</strong>
               </span>

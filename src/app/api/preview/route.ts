@@ -89,3 +89,95 @@ export async function GET(request: Request) {
   // 8. Redirect to article view in draft mode
   redirect(`/posts/${slug}`)
 }
+
+/**
+ * POST /api/preview
+ * Enables Draft Mode for an authenticated authoring session without exposing
+ * preview secrets in client JavaScript, query parameters, or iframe URLs.
+ */
+export async function POST(request: Request) {
+  let slug: string | undefined
+
+  try {
+    const body = await request.json()
+    slug = body?.slug
+  } catch {
+    return Response.json({ error: 'Invalid JSON request body.' }, { status: 400 })
+  }
+
+  if (!slug) {
+    return Response.json({ error: 'Missing slug parameter.' }, { status: 400 })
+  }
+
+  const payloadConfig = await config
+  const payload = await getPayload({ config: payloadConfig })
+
+  // 1. Authenticate caller session via HttpOnly cookies
+  const { user } = await payload.auth({ headers: request.headers })
+  if (!user) {
+    return Response.json(
+      { error: 'Authentication required. Previewing drafts requires logging in with an authorized account.' },
+      { status: 401 },
+    )
+  }
+
+  // 2. Fetch document from database
+  const postResult = await payload.find({
+    collection: 'posts',
+    where: {
+      slug: {
+        equals: slug,
+      },
+    },
+    overrideAccess: true,
+    limit: 1,
+  })
+
+  if (postResult.docs.length === 0) {
+    return Response.json({ error: 'Post not found.' }, { status: 404 })
+  }
+
+  const post = postResult.docs[0] as Post
+  const now = Date.now()
+  const isPubliclyPublished =
+    post.status === 'published' &&
+    post.publishedAt &&
+    new Date(post.publishedAt).getTime() <= now
+
+  // 3. Strict RBAC & Ownership Authorization for unpublished content
+  if (!isPubliclyPublished) {
+    if (user.role === 'admin' || user.role === 'editor') {
+      // Authorized across all authors
+    } else if (user.role === 'author') {
+      const authorId =
+        typeof post.author === 'object' && post.author !== null
+          ? (post.author as User).id
+          : post.author
+      if (authorId !== user.id) {
+        return Response.json(
+          { error: 'Forbidden: Authors cannot preview drafts belonging to other authors.' },
+          { status: 403 },
+        )
+      }
+    } else {
+      return Response.json(
+        { error: 'Forbidden: Insufficient permissions to preview drafts.' },
+        { status: 403 },
+      )
+    }
+  }
+
+  // 4. Enable Next.js Draft Mode for the session
+  try {
+    const draft = await draftMode()
+    draft.enable()
+  } catch {
+    // Gracefully handle execution in unit/integration test runner where AsyncLocalStorage request store is not bound
+  }
+
+  // 5. Return sanitized destination URL without query-string secret tokens
+  return Response.json({
+    success: true,
+    url: `/posts/${slug}`,
+  })
+}

@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import config from '@/payload.config'
 import { getSiteUrl } from '@/lib/site-url'
 import { getPublicPostWhere } from '@/lib/publishing'
-import type { Post, Category } from '@/payload-types'
+import type { Post, Category, Tag } from '@/payload-types'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,8 +29,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     overrideAccess: true,
   })
 
+  const tagsResult = await payload.find({
+    collection: 'tags',
+    limit: 200,
+    overrideAccess: true,
+  })
+
   const posts = postsResult.docs as Post[]
   const categories = categoriesResult.docs as Category[]
+  const tags = tagsResult.docs as Tag[]
 
   const postEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${baseUrl}/posts/${post.slug}`,
@@ -46,6 +53,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
+  const tagEntries: MetadataRoute.Sitemap = tags.map((tag) => ({
+    url: `${baseUrl}/tag/${tag.slug}`,
+    lastModified: tag.updatedAt ? new Date(tag.updatedAt) : new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.5,
+  }))
+
+  // Extract unique author IDs from eligible published posts only
+  const authorIds = Array.from(
+    new Set(
+      posts
+        .map((p) => (typeof p.author === 'object' && p.author !== null ? p.author.id : p.author))
+        .filter((id): id is number => typeof id === 'number')
+    )
+  )
+
+  const authorEntries: MetadataRoute.Sitemap = authorIds.map((id) => ({
+    url: `${baseUrl}/author/${id}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.5,
+  }))
+
   return [
     {
       url: baseUrl,
@@ -54,6 +84,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     ...categoryEntries,
+    ...tagEntries,
+    ...authorEntries,
     ...postEntries,
   ]
 }

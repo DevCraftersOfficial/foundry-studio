@@ -160,7 +160,13 @@ export interface User {
  */
 export interface Media {
   id: number;
+  /**
+   * Required screen-reader description of image content to satisfy WCAG 2.2 AA accessibility standards.
+   */
   alt: string;
+  /**
+   * Optional editorial caption or photojournalism attribution displayed below the media.
+   */
   caption?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -208,8 +214,17 @@ export interface Post {
   id: number;
   title: string;
   slug: string;
+  /**
+   * Editorial lifecycle: Draft (in-progress) → In Review (pending editor approval) → Scheduled (queued for future date) → Published (live publicly) → Archived (delisted).
+   */
   status: 'draft' | 'in_review' | 'scheduled' | 'published' | 'archived';
+  /**
+   * Required future timestamp for Scheduled posts; auto-set to current time upon publishing if left empty.
+   */
   publishedAt?: string | null;
+  /**
+   * Author attribution. Authors can only set themselves; Editors and Admins may reassign attribution.
+   */
   author?: (number | null) | User;
   featuredImage?: (number | null) | Media;
   categories?: (number | Category)[] | null;

@@ -153,7 +153,7 @@ This document outlines the phased development roadmap, milestone dependencies, m
 ---
 
 ### Milestone FS-UI-004: Editorial Workspace & Admin Login Customization (Phase 3)
-- **Status:** Complete & Ready for Review
+- **Status:** Complete (Accepted)
 - **Dependencies:** FS-UI-003
 - **Objective:** Brand Payload CMS administrative login with DevCrafters endorsed identity, add Studio icon in StepNav, customize sidebar navigation, and provide contextual editorial workflow guidance.
 - **Measurable Acceptance Criteria:**
@@ -163,14 +163,109 @@ This document outlines the phased development roadmap, milestone dependencies, m
   4. Restrained `custom.scss` stylesheet applying DevCrafters Flame Orange focus rings and active navigation indicators without brittle DOM hacks. (Verified)
   5. Enhanced field workflow guidance on `Posts.status`, `Posts.publishedAt`, `Posts.author`, and `Media.alt`. (Verified)
   6. Automated integration tests in `tests/int/payload-admin-branding.int.spec.ts` (128/128 suite tests passing), `npx tsc --noEmit` clean, `npm run lint` clean, standalone build passing, and browser audit verified with screenshots. (Verified)
-- **Review Gate:** CTO sign-off on Phase 3 before authorizing Phase 4 (Accessibility & Visual Regression Gating).
+- **Review Gate:** CTO sign-off on Phase 3 completed.
 
 ---
 
-### Milestone FS-UI-005: Accessibility & Visual Regression Gating (Phase 4)
+### Milestone FS-UI-005A: Foundry Studio Full Product Revamp — Discovery & Specification
+- **Status:** Complete & Ready for Review
+- **Dependencies:** FS-UI-004 sign-off
+- **Objective:** Reposition Foundry Studio as a distinctive, proprietary publishing product by DevCrafters with its own design language and complete editorial experience; specify full screen inventory and architectural evaluation in `docs/UI_REVAMP_SPEC.md`.
+- **Measurable Acceptance Criteria:**
+  1. Product positioning updated to proprietary publishing product with potential commercial licensing; public copy sanitized of open-source descriptions while preserving underlying dependency notices. (Verified)
+  2. Complete screen inventory specified for both Editorial Workspace (Studio) and Public Publishing Experience (Reader). (Verified)
+  3. Architectural evaluation completed (Option A: pure Payload Admin vs. Option B: bespoke Next.js studio vs. Option C: hybrid proprietary engine). Option C recommended and documented. (Verified)
+  4. Phased dependency-ordered roadmap defined across 5 discrete, verifiable implementation milestones. (Verified)
+  5. Zero application code or database modifications introduced during discovery. (Verified)
+- **Review Gate:** CTO review and approval of `docs/UI_REVAMP_SPEC.md` before authorizing implementation.
+
+---
+
+### Milestone FS-UI-005B: Foundry Studio Full Redesign — Technical Feasibility
+- **Status:** Complete (Feasibility & Architectural Analysis Accepted — Awaiting CTO Review)
+- **Dependencies:** FS-UI-005A
+- **Objective:** Determine the safest, maintainable way to replace generic Payload Admin experience with proprietary Foundry Studio interface; evaluate extension APIs, split-pane preview security, and PostgreSQL search feasibility; document findings in ADR-0004 and update technical specifications.
+- **Measurable Acceptance Criteria:**
+  1. Technical audit of installed Payload 3.91.0 and Next.js 15.3.6 extension APIs (`admin.components.Nav`, `header`, `views.dashboard`, `collection.admin.components.views.list`). (Verified)
+  2. Preview security architecture validated: split-pane same-origin iframe permitted under existing `X-Frame-Options: SAMEORIGIN` and CSP `frame-ancestors 'self'`; Next.js Server Action draft session activation eliminating client-side `PREVIEW_SECRET` leakage. (Verified)
+  3. Search strategy documented: in-process Payload API `where` baseline with forward-compatible PostgreSQL `tsvector` GIN indexing under zero additional SaaS cost. (Verified)
+  4. Architectural decision record created (`docs/adr/0004-editorial-workspace-architecture.md`) establishing Option C (Hybrid Proprietary Engine). (Verified)
+  5. Specification and roadmap synchronized (`docs/UI_REVAMP_SPEC.md`, `docs/ROADMAP.md`, `docs/PROJECT_STATE.md`). (Verified)
+  6. Zero application code or database schema mutations executed. (Verified)
+- **Review Gate:** CTO review and approval of technical feasibility report before authorizing FS-UI-006.
+
+---
+
+### Milestone FS-UI-006: Studio Navigation Shell & Desk Header
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Review)
+- **Dependencies:** FS-UI-005B
+- **Objective:** Implement proprietary Studio navigation (`admin.components.Nav`) and desk header (`admin.components.header`) replacing Payload's default sidebar with the DevCrafters Studio shell.
+- **Measurable Acceptance Criteria:**
+  1. Custom Server Component registered at `admin.components.Nav` (`StudioNav`) wrapping `StudioNavClient` in Payload native `NavWrapper` with full responsive mobile drawer support. (Verified)
+  2. Custom Server Component registered at `admin.components.header` (`StudioHeader`) rendering the bespoke Studio Desk Masthead with live publishing indicator, environment badge, role pill, and integrated Draft Mode exit link. (Verified)
+  3. Role-based visibility enforced as a usability measure: Admins see system governance and fallback tables; Editors see editorial desks and taxonomy; Authors see Core Editorial Desks. (Verified)
+  4. Standard UI states handled gracefully: Ideal authenticated workspace, Loading skeleton shimmer, and Restricted Workspace permission-denied box. (Verified)
+  5. Administrative fallback link to standard Payload collection tables preserved. (Verified)
+  6. 141 automated integration tests passing across 10 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js Turbopack build passing, and live desktop/mobile browser audit verified. (Verified)
+- **Review Gate:** CTO review and approval of FS-UI-006 before authorizing FS-UI-007.
+
+---
+
+### Milestone FS-UI-007: Editorial Newsroom Dashboard View
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Review)
+- **Dependencies:** FS-UI-006 sign-off
+- **Objective:** Replace generic Payload Admin collection-card landing page with a purpose-built editorial newsroom dashboard (`admin.components.views.dashboard`) featuring submission review queues, scheduled release countdowns, desk triage controls, and strict server-authorized queries.
+- **Measurable Acceptance Criteria:**
+  1. The `/admin` landing page renders the custom newsroom dashboard (`StudioDashboard`), completely replacing generic collection cards. (Verified)
+  2. Server-side queries strictly enforce RBAC and author boundaries (`overrideAccess: false, user`): Authors only see their own drafts and in-review submissions; other authors' restricted content is never leaked. (Verified)
+  3. Editors and Admins receive team-wide visibility: priority review queue (`Needs Review`), work-in-progress drafts, scheduled releases, and live dispatches. (Verified)
+  4. Standard UI states handled gracefully: Ideal, Loading (shimmer skeleton loaders), Empty (3-step newsroom onboarding guidance), Error (actionable refresh button), and Permission-Denied (secure restricted workspace alert). (Verified)
+  5. 4 KPI metric cards (Drafts, In Review, Scheduled, Live Dispatches) provide accurate publication velocity at a glance with zero polling or paid analytics. (Verified)
+  6. Quick actions provide rapid navigation: `+ New Dispatch`, `Upload Media`, `All Dispatches`, `Categories`, `Topic Tags`, `Staff Directory` (Admin), and `Public Reader`. (Verified)
+  7. Automated verification: 156 integration tests passing across 11 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone Turbopack build compiling cleanly, and live browser audit verified across desktop (1280×800) and mobile (375×812) viewports. (Verified)
+- **Review Gate:** CTO review and approval of FS-UI-007 before authorizing FS-UI-008.
+
+---
+
+### Milestone FS-UI-008: Article Authoring Desk & Split Live Preview
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Review)
+- **Dependencies:** FS-UI-007
+- **Objective:** Create a premium, proprietary authoring experience native to Foundry Studio with a two-column authoring layout, real-time word-count & reading-time HUD, and secret-free dual-mode preview (split live preview and separate tab reader preview) while strictly preserving Payload's native Lexical editor, field validation, relationship drawers, authorization, and persistence behavior.
+- **Measurable Acceptance Criteria:**
+  1. Proprietary two-column authoring desk layout: focused central writing canvas (`title`, `slug`, `excerpt`, `content`) and metadata inspector sidebar (`status`, `publishedAt`, `author`, `featuredImage`, `categories`, `tags`) with seamless responsive stacking on mobile viewports. (Verified)
+  2. Preserves Payload native form state, Lexical rich-text editor, validation, and relationship drawers using supported extension points (`admin.components.edit.beforeDocumentControls`). (Verified)
+  3. Real-time word-count and reading-time HUD derived deterministically from Lexical AST via `calculateReadingTime` with accessible live region (`role="status"`, `aria-atomic="true"`). (Verified)
+  4. Real-time persistence and lifecycle status indicators: `Saved to Desk`, `Saving...` (spinner), `Unsaved Changes` (pulsing amber dot), and `Read-Only` (padlock) with document workflow pills. (Verified)
+  5. Dual-mode secure preview flow: Split-pane live preview (`isLivePreviewing`) with responsive breakpoints (Mobile 375px, Tablet 768px, Desktop 1280px) and Reader in separate tab (`POST /api/preview`) using session authentication and Next.js `draftMode().enable()`, strictly without exposing secrets in URLs, client code, or query strings. (Verified)
+  6. Strict server-side RBAC and publication workflow boundaries preserved: authors can preview their own drafts, forbidden from previewing drafts of other authors (HTTP 403); editors and admins have team-wide preview. (Verified)
+  7. Automated verification: 170 integration tests passing across 12 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone Turbopack build compiling cleanly, and live browser audit verified on desktop (1280×800) and mobile (375×812) viewports. (Verified)
+- **Review Gate:** CTO review and approval of FS-UI-008 before authorizing FS-UI-009.
+
+---
+
+### Milestone FS-UI-009: Public Reader Redesign & Default Doodle Profile Avatars
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Review)
+- **Dependencies:** FS-UI-008
+- **Objective:** Complete the premium public publishing experience so the reader feels like a distinctive Foundry Studio product rather than a generic blog template. Implement broadsheet front-page hierarchy with asymmetric feature presentation, refined long-form reading typography, author archives (`/author/[id]`), topic tag archives (`/tag/[slug]`), server-side public search (`/search?q=...`), editorial 404 recovery, obsolete copy removal, and original AI-generated default doodle profile avatars.
+- **Measurable Acceptance Criteria:**
+  1. Redesigned public homepage featuring asymmetric broadsheet hierarchy: lead feature story, complementary secondary feature, multi-column dispatches grid with author attribution and reading times, and editorial beats taxonomy index. (Verified)
+  2. Refined long-form article page: 68ch optical reading geometry, Newsreader serif typography, breadcrumbs, prominent author attribution card with doodle profile avatar, publication date, reading time pill, topic tags, and strictly eligible related dispatches. (Verified)
+  3. Author archives implemented at `/author/[id]` with author profile header (doodle avatar, role badge, total stories count) and article card grid, strictly filtering out unpublished drafts. (Verified)
+  4. Topic tag archives implemented at `/tag/[slug]` and category archives at `/category/[slug]` with published-state enforcement. (Verified)
+  5. Server-side public search implemented at `/search?q=...` using Local API `like` queries across titles and excerpts, strictly constrained by `getPublicPostWhere(now)`, with empty query guidance, zero results state, and robots disallow to protect crawl budget. (Verified)
+  6. Literary 404 recovery page implemented at `src/app/not-found.tsx` with search input and direct navigation links. (Verified)
+  7. Strict publication eligibility invariant: drafts, in-review, scheduled, and archived posts strictly quarantined and prevented from leaking into search, author archives, tag archives, related stories, sitemaps, or structured data. (Verified)
+  8. Two original AI-generated doodle profile avatars (`avatar-male.jpg`, `avatar-female.jpg`) created in Foundry Studio's palette, stored locally in `public/avatars/`, deterministically selected by persistent user ID parity (preserving custom avatars), and rendered accessibly with `decorative={true}` (`aria-hidden="true"`) across both Public Reader and Admin Studio surfaces. (Verified)
+  9. Obsolete public product copy ("An Open-Source Editorial Publishing Platform") updated to "Editorial Publishing Platform" in brand lockup footer while preserving third-party open-source licensing. (Verified)
+  10. Automated verification: 182 integration tests passing across 13 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone Turbopack build compiling cleanly, and live browser audit verified across desktop (1280×800) and mobile (375×812) viewports. (Verified)
+- **Review Gate:** CTO review and approval of FS-UI-009 before authorizing FS-UI-010.
+
+---
+
+### Milestone FS-UI-010: Comprehensive WCAG 2.2 AA & Responsive Certification
 - **Status:** Planned
-- **Dependencies:** FS-UI-004
-- **Objective:** Complete automated WCAG 2.2 AA audit across responsive breakpoints and keyboard navigation flows.
+- **Dependencies:** FS-UI-009
+- **Objective:** Complete automated axe-core accessibility regression suite, keyboard navigation certification, and responsive verification across 375px, 768px, 1280px, and 1920px viewports.
 
 
 ---

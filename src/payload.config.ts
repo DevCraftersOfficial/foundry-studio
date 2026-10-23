@@ -44,6 +44,13 @@ export default buildConfig({
         Icon: '@/components/admin/Icon#AdminIcon',
       },
       beforeNavLinks: ['@/components/admin/NavBrand#AdminNavBrand'],
+      header: ['@/components/admin/StudioHeader#StudioHeader'],
+      Nav: '@/components/admin/StudioNav#StudioNav',
+      views: {
+        dashboard: {
+          Component: '@/components/admin/StudioDashboard#StudioDashboard',
+        },
+      },
     },
   },
   collections: [Users, Media, Posts, Categories, Tags],

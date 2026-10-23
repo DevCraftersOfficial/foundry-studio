@@ -59,11 +59,20 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
         <header className="masthead" role="banner">
           <div className="container">
             <div className="masthead-topbar">
-              <span>Foundry Dispatch • Vol. 1</span>
-              <time dateTime={new Date().toISOString()}>{today}</time>
-              <Link href="/admin" className="masthead-admin-link">
-                Admin Studio &rarr;
-              </Link>
+              <span className="masthead-edition">Foundry Dispatch • Vol. 1</span>
+              <time dateTime={new Date().toISOString()} className="masthead-date">{today}</time>
+              <div className="masthead-topbar-actions">
+                <Link href="/search" className="masthead-search-link" aria-label="Search articles">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span>Search</span>
+                </Link>
+                <Link href="/admin" className="masthead-admin-link">
+                  Admin Studio &rarr;
+                </Link>
+              </div>
             </div>
             <div className="masthead-brand">
               <BrandLockup variant="masthead" href="/" />
@@ -81,14 +90,8 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
             <BrandLockup variant="footer" href="/" />
             <div className="footer-links">
               <Link href="/">Front Page</Link>
+              <Link href="/search">Search Archives</Link>
               <Link href="/admin">Editorial Workspace</Link>
-              <a
-                href="https://github.com/DevCraftersOfficial/foundry-studio"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Source
-              </a>
             </div>
           </div>
         </footer>

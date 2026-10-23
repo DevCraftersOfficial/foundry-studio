@@ -21,9 +21,13 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { StudioAuthoringHUD as StudioAuthoringHUD_526253558bbe50f1c29e6d140ea40196 } from '@/components/admin/StudioAuthoringHUD'
+import { StudioNav as StudioNav_2ac79ca9740ba3cfd1341032cf138267 } from '@/components/admin/StudioNav'
+import { StudioHeader as StudioHeader_3a413f9f0d9c6764c644bddf5d2d74c7 } from '@/components/admin/StudioHeader'
 import { AdminIcon as AdminIcon_534076e2c753ea5d539a54b05f456b1b } from '@/components/admin/Icon'
 import { AdminLogo as AdminLogo_a44df17d0fc3dcd873dae43dc3bf66bd } from '@/components/admin/Logo'
 import { AdminNavBrand as AdminNavBrand_47aa48da0e11e9bbac3155f33546fa78 } from '@/components/admin/NavBrand'
+import { StudioDashboard as StudioDashboard_c1b3fc2209ce7e46414cfe0da640def6 } from '@/components/admin/StudioDashboard'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -51,8 +55,12 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#BoldFeatureClient": BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/components/admin/StudioAuthoringHUD#StudioAuthoringHUD": StudioAuthoringHUD_526253558bbe50f1c29e6d140ea40196,
+  "@/components/admin/StudioNav#StudioNav": StudioNav_2ac79ca9740ba3cfd1341032cf138267,
+  "@/components/admin/StudioHeader#StudioHeader": StudioHeader_3a413f9f0d9c6764c644bddf5d2d74c7,
   "@/components/admin/Icon#AdminIcon": AdminIcon_534076e2c753ea5d539a54b05f456b1b,
   "@/components/admin/Logo#AdminLogo": AdminLogo_a44df17d0fc3dcd873dae43dc3bf66bd,
   "@/components/admin/NavBrand#AdminNavBrand": AdminNavBrand_47aa48da0e11e9bbac3155f33546fa78,
+  "@/components/admin/StudioDashboard#StudioDashboard": StudioDashboard_c1b3fc2209ce7e46414cfe0da640def6,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

@@ -10,7 +10,7 @@
 
 ## 1. Product Vision & Design Principles
 
-Foundry Studio is an open-source, content publishing platform developed under **DevCrafters**. It is an **endorsed product** that bridges two distinct operational modes:
+Foundry Studio is a proprietary content publishing product developed by **DevCrafters**. It is an **endorsed product** that bridges two distinct operational modes:
 
 1. **The Editorial Experience:** A focused, high-efficiency operational workspace for writers, editors, and administrators.
 2. **The Public Publishing Experience:** A refined, authoritative, typographic-first reading surface for audiences and search engines.
@@ -169,7 +169,7 @@ Fonts are imported in [`src/app/(frontend)/layout.tsx`](file:///home/lokeshverma
 The primary brand signature establishing the endorsed relationship "Foundry Studio by DevCrafters":
 - **Variants:**
   - `masthead`: Newspaper masthead with title and uppercase sub-lockup ("BY DEVCRAFTERS").
-  - `footer`: Balanced footer lockup with title and open-source platform credit.
+  - `footer`: Balanced footer lockup with title and DevCrafters product credit.
   - `compact`: Inline header lockup (`FOUNDRY STUDIO / by DevCrafters`).
   - `badge`: Pill badge for metadata or headers.
 - **Accessibility:** Pure SVG DevCrafters mark with `aria-hidden="true"`, explicit `aria-label` on navigation links, full keyboard navigability with visible focus rings.
@@ -201,22 +201,130 @@ Deterministic reading-time calculation for editorial journalism:
 - **Editorial Standfirst:** Stylized lead paragraph (`.article-standfirst`) in italicized serif with a 3px DevCrafters orange border rule (`--brand-accent`).
 - **Reading Measure:** Article body constrained to `68ch` with 1.8 line-height for optimal reading ergonomics.
 
-#### 3.3.7. Payload Admin Editorial Workspace Branding
-- **Architectural Approach:** Employs Payload CMS 3.x's official extension points (`admin.components.graphics`, `admin.components.beforeNavLinks`, `admin.meta`, and `custom.scss`) without brittle DOM hacking or global CSS monkey-patching.
+#### 3.3.7. Payload Admin Editorial Workspace Branding & Studio Navigation
+- **Architectural Approach:** Employs Payload CMS 3.x's official extension points (`admin.components.Nav`, `admin.components.header`, `admin.components.graphics`, and `custom.scss`) per ADR-0004 without brittle DOM hacking or global CSS monkey-patching.
 - **Components:**
+  - `StudioNav` (`src/components/admin/StudioNav.tsx`) & `StudioNavClient` (`src/components/admin/StudioNavClient.tsx`): Replaces default sidebar navigation with a responsive, role-aware newsroom desk navigation wrapped in Payload's native `NavWrapper`. Features branded masthead, active route indicators (`border-left: 3px solid #EA580C`, subtle warm highlight), user session profile card, role badges (`ADMIN`, `EDITOR`, `AUTHOR`), and sign-out controls.
+  - `StudioHeader` (`src/components/admin/StudioHeader.tsx`): Bespoke top newsroom desk masthead rendered globally at `admin.components.header`. Displays live publishing status, environment badge (`PROD` / `LOCAL DEV`), role indicator pill, direct link to Public Reader, and an integrated Draft Mode status banner with an explicit "Exit Preview" control (`/api/exit-preview`).
   - `AdminLogo` (`src/components/admin/Logo.tsx`): Responsive SVG brand lockup displayed on admin login (`/admin/login`) featuring the DevCrafters geometric hexagon bracket in Flame Orange (`#EA580C`) and obsidian wordmark (`var(--theme-elevation-1000)`). Fully light/dark mode responsive.
   - `AdminIcon` (`src/components/admin/Icon.tsx`): Compact 25×25 SVG icon rendered in the authenticated workspace header and StepNav breadcrumbs.
-  - `AdminNavBrand` (`src/components/admin/NavBrand.tsx`): Anchored brand stamp rendered via `beforeNavLinks` at the top of the sidebar navigation.
   - `Favicon` (`public/favicon.svg`): Standalone SVG favicon for browser tabs across both public and administrative routes.
+- **Role-Aware Navigation Desks (Usability Measures):**
+  - **Editorial Desk** (Overview Desk, Dispatches, Media Room): Visible to all authenticated editorial roles (`admin`, `editor`, `author`).
+  - **Organization & Beats** (Categories, Topic Tags): Visible to `admin` and `editor`.
+  - **Governance** (Staff & Authors): Visible to `admin` only.
+  - **Review & Fallbacks** (Native Data Tables): Explicit fallback link to Payload standard collection tables for administrative recovery.
+- **Lifecycle & Error States:**
+  - **Loading State:** Shimmering animated skeleton loaders when session data is resolving.
+  - **Permission-Denied State:** High-visibility restricted workspace banner when an account has zero accessible collections.
 - **Restrained Admin Stylesheet (`src/app/(payload)/custom.scss`):**
   - DevCrafters Flame Orange accent focus outlines (`:focus-visible`).
-  - Active collection link indicators with 3px brand border rules.
-  - Responsive SVG scaling for brand marks across viewports.
+  - High-contrast obsidian ink header (`#0F172A`) with crisp borders.
+  - Responsive mobile drawer styling integrated with Payload's native hamburger toggle.
 - **Editorial Workflow Guidance:**
   - `Posts.status`: Step-by-step description of editorial lifecycle (`draft` → `in_review` → `scheduled` → `published` → `archived`).
   - `Posts.publishedAt`: Validation guidance explaining scheduled future requirements versus immediate publication auto-dating.
   - `Posts.author`: Attribution boundaries for authors versus editors/admins.
   - `Media.alt`: WCAG 2.2 AA accessibility instructions for content creators.
+
+#### 3.3.8. Foundry Studio Newsroom Dashboard View (`StudioDashboard`)
+- **Architectural Approach:** Implemented via Payload 3.x's official custom dashboard extension point (`admin.components.views.dashboard.Component`), replacing generic Payload collection cards with a purpose-built editorial newsroom desk.
+- **Components:**
+  - `StudioDashboard` (`src/components/admin/StudioDashboard.tsx`): Server Component executing role-aware, server-authorized queries via Local API with `overrideAccess: false, user`. Evaluates RBAC boundaries without leaking drafts or restricted content across authors.
+  - `StudioDashboardView` (`src/components/admin/StudioDashboardView.tsx`): High-craft presentation component rendering newsroom masthead, 4 KPI metric cards, review queues, work-in-progress drafts, scheduled release countdowns, live dispatches, and quick desk actions.
+  - `editorial-date` (`src/lib/editorial-date.ts`): Deterministic helpers for relative time (`just now`, `5m ago`, `2d ago`), scheduled countdowns (`in 45m`, `in 3h`, `in 2d`), and greeting generation.
+- **Role-Aware Content Queues & Privacy Boundaries:**
+  - **Author Role:**
+    - Metric cards display author's own drafts, author's submissions in review, author's scheduled stories, and live dispatches.
+    - Review section presents "Your Submissions in Review" with status badges.
+    - "Your In-Progress Drafts" provides direct "Continue Writing" links.
+    - Strictly prevents leaking other authors' un-submitted drafts or in-review items.
+  - **Editor & Admin Roles:**
+    - Priority "Editorial Review Queue" (Needs Review) displaying team-wide submissions awaiting evaluation, proofreading, and approval, sorted by latest submissions (`-createdAt`).
+    - "Work in Progress (Recent Drafts)" displaying team drafts.
+    - "Upcoming Releases" with relative release countdowns.
+    - Quick Desk Actions including Categories and Topic Tags.
+    - Admin role additionally displays Staff & Authors Directory and native collection table fallback.
+- **Lifecycle & Standard UI States:**
+  - **Ideal State:** High-contrast editorial workspace with 4 KPI cards and responsive 2-column grid.
+  - **Loading State:** Shimmering animated card and row skeletons matching the real geometric layout of the dashboard.
+  - **Empty State:** When total publication records are 0, displays a Newsroom Onboarding Banner with 3-step setup guidance ("1. Organize Beats", "2. Draft a Story", "3. Upload Media"). Section-specific empty states reassure the user when queues are clear ("Editorial desk is clear. No submissions currently awaiting review.").
+  - **Error State:** High-visibility error card with custom message and "Refresh Newsroom Desk" recovery link.
+  - **Permission-Denied State:** Secure restricted desk card blocking unauthenticated users without exposing metrics or publication titles.
+- **Design Tokens & Visual Hierarchy:**
+  - High-contrast obsidian ink (`#0F172A`) on warm canvas (`#FAF8F5`).
+  - DevCrafters Flame Orange (`#EA580C`) for active highlights, focus rings, and primary "+ New Dispatch" CTA.
+  - Status tokens matching WCAG 2.2 AA (Draft `#475569`, Review `#92400E`, Scheduled `#3730A3`, Published `#065F46`).
+  - Zero emojis: pure inline SVGs for all functional icons.
+
+#### 3.3.9. Foundry Studio Authoring Desk & Dual-Mode Preview (`StudioAuthoringHUD`)
+- **Architectural Approach:** Implemented through Payload 3.x's official document controls extension point (`admin.components.edit.beforeDocumentControls`), integrating proprietary HUD controls and branding without replacing the native form state, Lexical rich-text editor, or field validation engine.
+- **Two-Column Editorial Writing Desk Layout:**
+  - **Writing Canvas (`.document-fields__main`):** Distraction-free, centered editorial canvas (`max-width: 920px`) housing the headline (`title`), custom URL slug (`slug`), standfirst summary (`excerpt`), and longform Lexical rich-text editor (`content`).
+  - **Inspector Sidebar (`.document-fields__sidebar`):** Dedicated metadata inspector housing publication workflow status (`status`), scheduled release date (`publishedAt`), attribution (`author`), primary photography (`featuredImage`), category taxonomy (`categories`), and topic tags (`tags`).
+  - **Responsive Stacking:** On viewports `<= 1024px` and mobile (`375px`), the inspector sidebar collapses seamlessly beneath the writing canvas into an accessible single-column stack.
+- **Word-Count & Reading-Time HUD:**
+  - Derived deterministically in real time from Lexical AST node structure using `calculateReadingTime` (`src/lib/reading-time.ts`).
+  - Evaluates standard 200 WPM publishing metrics with formatted labels (`34 words • 1 min read`).
+  - Accessible via `role="status"` and `aria-atomic="true"`.
+- **Form Persistence & Lifecycle Status:**
+  - Real-time indicator badges tracking document lifecycle:
+    - `Saved to Desk` (emerald dot `#22C55E`): Confirmed database persistence.
+    - `Unsaved Changes` (pulsing flame dot `#EA580C`): Active unsaved modifications.
+    - `Saving...` (animated SVG spinner): Asynchronous network mutation in flight.
+    - `Read-Only` (padlock icon): User lacks edit/save permissions.
+  - Document workflow pills (`DRAFT`, `IN REVIEW`, `PUBLISHED`, `SCHEDULED`).
+- **Dual-Mode Secure Preview Flow:**
+  - **1. Split-Pane Live Preview:** Toggled via `Split Preview` button, utilizing Payload's native `admin.livePreview` with responsive device switchers (`mobile 375px`, `tablet 768px`, `desktop 1280px`).
+  - **2. Reader in Separate Tab (`POST /api/preview`):** Authorizes draft mode using server-side session authentication (`payload.auth()`). Automatically issues Next.js `draftMode().enable()` and opens `/posts/[slug]` in a new tab without exposing preview secrets in URLs, client code, or query strings.
+  - **Server-Side Authorization Invariant:** Strictly blocks authors from previewing drafts authored by others (HTTP 403), while permitting Editors and Admins team-wide preview.
+
+#### 3.3.10. Foundry Studio Public Reader Redesign (FS-UI-009)
+- **Architectural Approach:** Complete, distinctive editorial reader experience rooted in Swiss typographic authority, high contrast, and asymmetrical broadsheet presentation.
+- **Asymmetric Front-Page Hierarchy (`src/app/(frontend)/page.tsx`):**
+  - **Lead Feature Story:** Expansive primary card with large Newsreader headline (`clamp(2rem, 3.5vw, 3rem)`), standfirst summary, publication metadata, reading time pill, and featured photography framed with crisp 1px borders.
+  - **Secondary Feature Story:** Complementary story positioned alongside the lead feature in an asymmetrical two-column layout (`1.4fr : 1fr`), establishing visual pacing and editorial rhythm.
+  - **Latest Dispatches Grid:** Multi-column grid for standard articles featuring author attribution with doodle profile avatars, reading time badges, category labels, and hover micro-interactions.
+  - **Editorial Beats Index:** Taxonomy navigation showcasing active content categories with direct links and counts.
+- **Longform Article Reading Experience (`src/app/(frontend)/posts/[slug]/page.tsx`):**
+  - **Reading Geometry:** Maximum measure constrained to `68ch` (`max-w-prose`) with `1.8` line-height for optimal optical ergonomics and longform comfort.
+  - **Author Attribution Card:** Positioned directly below the headline and standfirst, featuring a prominent doodle profile avatar (`Avatar.tsx`), linked author archive, editorial role pill, publication date, and calculated reading time.
+  - **Topic Tags & Navigation:** Clean typographic tag pills linking directly to `/tag/[slug]` topic archives.
+  - **Related Dispatches:** Contextual article recommendations dynamically querying up to 3 published posts in shared categories, strictly constrained by `getPublicPostWhere(now)` to eliminate draft leakage.
+- **Taxonomy & Author Archives:**
+  - **Topic Tag Archive (`src/app/(frontend)/tag/[slug]/page.tsx`):** Dedicated archive view with tag header and grid of eligible published stories.
+  - **Category Archive (`src/app/(frontend)/category/[slug]/page.tsx`):** Section archive with breadcrumbs and published dispatches.
+  - **Author Archive (`src/app/(frontend)/author/[id]/page.tsx`):** Author profile header featuring large doodle avatar (`size="xl"`), author name, editorial role badge, total published stories count, and an archive grid of authored stories with strict publication filtering.
+- **Server-Side Public Search (`src/app/(frontend)/search/page.tsx`):**
+  - Robust server-side `like` search querying post titles and excerpts using Local API.
+  - Strict publication eligibility invariant enforced (`getPublicPostWhere(now)`).
+  - Explicit UI lifecycle states: Search bar input, Results grid, Empty query guidance ("Enter a query above to explore stories..."), Zero results state ("No stories found matching '...'"), and Error recovery.
+  - Search engine privacy: Configured with `robots: { index: false, follow: true }` and disallowed in `robots.ts` to prevent crawl budget dilution.
+- **Editorial 404 Recovery View (`src/app/not-found.tsx` & `src/app/(frontend)/not-found.tsx`):**
+  - Bespoke literary not-found page with search query field, quick navigation links back to front page beats, and clean typographic framing.
+- **Obsolete Copy Removal:**
+  - Updated brand lockup footer endorsement from "An Open-Source Editorial Publishing Platform" to "Editorial Publishing Platform" in `BrandLockup.tsx`, while maintaining accurate open-source license notices in `LICENSE`.
+
+#### 3.3.11. Default Doodle Profile Avatars & Fallback System (FS-UI-009)
+- **Visual Identity Alignment:**
+  - Two original, AI-generated doodle-style illustrated avatars created locally:
+    - `public/avatars/avatar-male.jpg`: Friendly, modern illustrated portrait.
+    - `public/avatars/avatar-female.jpg`: Friendly, modern illustrated portrait.
+  - Palette: Warm ivory canvas (`#FAF8F5`), obsidian ink line art (`#0F172A`), and restrained DevCrafters flame-orange accents (`#EA580C`).
+  - Stored locally as static assets — **zero runtime external HTTP requests and zero recurring costs**.
+- **Deterministic Fallback Engine (`src/lib/avatar.ts`):**
+  - Resolves avatar image path and alt text for any user object.
+  - **Precedence Rule:** Custom user-uploaded profile photos take precedence. When absent, the engine falls back to default doodle avatars.
+  - **Deterministic Selection Mechanism:** Explicit user ID parity (`id % 2 === 0 ? male : female`) guarantees consistent, reproducible avatar assignment across all surfaces without guessing or inferring from user names, and without requiring database schema migrations.
+  - Graceful null/undefined safety: Returns male doodle fallback if user is null or undefined.
+- **Accessible Avatar Component (`src/components/ui/Avatar.tsx`):**
+  - Reusable presentation component supporting sizes: `xs` (20px), `sm` (28px), `md` (40px), `lg` (64px), and `xl` (80px).
+  - Accessible Screen-Reader Treatment:
+    - When `decorative={true}` (default when rendered alongside a visible username/byline), applies `aria-hidden="true"` to prevent redundant screen reader announcements.
+    - When rendered standalone, applies descriptive `alt` text.
+  - Integrated across both Editorial and Public surfaces:
+    - Public: Article author attribution card, Author archive header, and Dispatch cards.
+    - Editorial: Studio navigation user session card (`StudioNavClient.tsx`) and Newsroom Dashboard review queues (`StudioDashboardView.tsx`).
 
 | Token | Size | Line Height | Tracking | Recommended Use |
 | :--- | :--- | :--- | :--- | :--- |

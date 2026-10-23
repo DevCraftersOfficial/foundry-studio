@@ -9,6 +9,39 @@ export const Posts: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'status', 'publishedAt', 'author', 'updatedAt'],
+    components: {
+      edit: {
+        beforeDocumentControls: ['@/components/admin/StudioAuthoringHUD#StudioAuthoringHUD'],
+      },
+    },
+    livePreview: {
+      url: ({ data }) => {
+        if (data?.slug) {
+          return `/posts/${data.slug}`
+        }
+        return '/'
+      },
+      breakpoints: [
+        {
+          name: 'mobile',
+          label: 'Mobile (375px)',
+          width: 375,
+          height: 667,
+        },
+        {
+          name: 'tablet',
+          label: 'Tablet (768px)',
+          width: 768,
+          height: 1024,
+        },
+        {
+          name: 'desktop',
+          label: 'Desktop (1280px)',
+          width: 1280,
+          height: 800,
+        },
+      ],
+    },
     preview: (doc) => {
       const secret = process.env.PREVIEW_SECRET || ''
       if (doc?.slug) {

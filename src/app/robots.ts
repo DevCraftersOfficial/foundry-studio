@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
           '/api/preview',
           '/api/exit-preview',
           '/api/',
+          '/search',
         ],
       },
     ],

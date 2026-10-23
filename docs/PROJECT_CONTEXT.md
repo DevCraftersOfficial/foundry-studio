@@ -1,14 +1,19 @@
 # Project Context — Foundry Studio
 
-## 1. Product Vision
+## 1. Product Vision & Positioning
 
-**Foundry Studio** is a content publishing platform developed under **DevCrafters**.
+**Foundry Studio** is a proprietary, premium content publishing product engineered and developed by **DevCrafters**.
 
-The platform is designed with a dual-phase strategic vision:
-1. **Initial Phase:** Provide a robust, modular, and reusable publishing platform for DevCrafters client projects, enabling rapid deployment of customized content hubs, blogs, knowledge bases, and corporate publications.
-2. **Evolutionary Phase:** Evolve into a standalone, multi-tenant Software-as-a-Service (SaaS) content management and publishing platform.
+Foundry Studio is positioned as an authoritative, bespoke editorial publishing platform designed for organizations, independent newsrooms, and high-craft publications that require deep editorial governance, distinctive typography, and zero-compromise performance.
 
-Foundry Studio prioritizes developer ergonomics, strict editorial governance, modular content architecture, and zero initial capital outlay.
+### Strategic Roadmap & Commercial Evolution
+1. **Initial Strategic Phase:** Provide a distinctive, proprietary publishing platform for DevCrafters client publications and enterprise editorial hubs, establishing a distinctive design language and complete editorial experience.
+2. **Evolutionary Phase:** Potential future commercial licensing and hosted service plans (SaaS). Commercial pricing, subscription billing, multi-tenant tenant isolation, and hosted cloud operations remain explicitly undecided and out of scope for current milestones.
+
+### Positioning & Brand Copy Invariants
+- **Proprietary Identity:** Public-facing product copy, mastheads, footers, and meta descriptions must **not** describe Foundry Studio as an open-source publishing platform.
+- **Third-Party Dependency Transparency:** Legal notices, license files, and dependency manifests for underlying open-source frameworks (Next.js, Payload CMS, PostgreSQL) remain fully transparent and accurately disclosed without misrepresentation.
+- **Budget Constraint:** Strict ₹0 initial infrastructure development budget. All runtime dependencies, tools, and libraries must be open-source or free-tier compatible.
 
 ---
 

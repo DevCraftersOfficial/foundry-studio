@@ -11,6 +11,7 @@ import { RichText } from '@/components/editorial/RichText'
 import { getSiteUrl } from '@/lib/site-url'
 import { getPublicPostWhere, isPostPubliclyEligible } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
+import { Avatar } from '@/components/ui/Avatar'
 
 type PageProps = {
   params: Promise<{
@@ -233,15 +234,36 @@ export default async function PostDetailPage({ params }: PageProps) {
     relatedPosts = relatedData.docs as Post[]
   }
 
+  // Fallback related posts if fewer than 2 found in same category
+  if (relatedPosts.length < 2) {
+    const existingIds = [post.id, ...relatedPosts.map((p) => p.id)]
+    const fallbackData = await payload.find({
+      collection: 'posts',
+      where: {
+        and: [
+          getPublicPostWhere(now),
+          {
+            id: {
+              not_in: existingIds,
+            },
+          },
+        ],
+      },
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 3 - relatedPosts.length,
+    })
+    relatedPosts = [...relatedPosts, ...(fallbackData.docs as Post[])]
+  }
+
   const category =
     post.categories && post.categories.length > 0 && typeof post.categories[0] === 'object'
-      ? (post.categories[0] as Category).name
+      ? (post.categories[0] as Category)
       : null
 
-  const authorName =
-    typeof post.author === 'object' && post.author
-      ? (post.author as User).name
-      : 'Foundry Editorial'
+  const author =
+    typeof post.author === 'object' && post.author ? (post.author as User) : null
+  const authorName = author?.name || 'Foundry Editorial'
 
   const featuredMedia =
     post.featuredImage && typeof post.featuredImage === 'object'
@@ -272,6 +294,7 @@ export default async function PostDetailPage({ params }: PageProps) {
     author: {
       '@type': 'Person',
       name: authorName,
+      ...(author ? { url: `${siteUrl}/author/${author.id}` } : {}),
     },
     publisher: {
       '@type': 'Organization',
@@ -294,20 +317,10 @@ export default async function PostDetailPage({ params }: PageProps) {
       {isDraftMode && (
         <div
           role="status"
-          style={{
-            backgroundColor: 'var(--status-review-bg)',
-            color: 'var(--status-review-text)',
-            padding: '0.625rem 1.5rem',
-            textAlign: 'center',
-            fontSize: '0.8125rem',
-            fontWeight: 700,
-            borderBottom: '1px solid var(--border-strong)',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
+          className="draft-mode-banner"
         >
           Editorial Draft Preview Mode Active • Status: {post.status} •{' '}
-          <Link href="/api/exit-preview" prefetch={false} style={{ textDecoration: 'underline', marginLeft: '0.5rem' }}>
+          <Link href="/api/exit-preview" prefetch={false} className="draft-mode-exit-link">
             Exit Preview
           </Link>
         </div>
@@ -317,13 +330,25 @@ export default async function PostDetailPage({ params }: PageProps) {
         <div className="container">
           {/* Header Section */}
           <header className="article-header">
-            <Link href="/" className="article-back-link">
-              &larr; Front Page
-            </Link>
+            <nav className="article-breadcrumbs" aria-label="Breadcrumb navigation">
+              <Link href="/" className="article-back-link">
+                &larr; Front Page
+              </Link>
+              {category && (
+                <>
+                  <span className="breadcrumb-sep">/</span>
+                  <Link href={`/category/${category.slug}`} className="breadcrumb-category">
+                    {category.name}
+                  </Link>
+                </>
+              )}
+            </nav>
 
             {category && (
-              <div>
-                <span className="category-badge">{category}</span>
+              <div className="article-category-badge-wrap">
+                <Link href={`/category/${category.slug}`} className="category-badge">
+                  {category.name}
+                </Link>
               </div>
             )}
 
@@ -331,17 +356,41 @@ export default async function PostDetailPage({ params }: PageProps) {
 
             {post.excerpt && <p className="article-standfirst">{post.excerpt}</p>}
 
-            <div className="article-meta-row">
-              <span>By <strong>{authorName}</strong></span>
-              <span aria-hidden="true">&bull;</span>
-              <time dateTime={post.publishedAt || ''}>{formatDate(post.publishedAt)}</time>
-              <span aria-hidden="true">&bull;</span>
-              <span
-                className="reading-time-badge"
-                aria-label={`Estimated reading time: ${readingTime.text}`}
-              >
-                {readingTime.text}
-              </span>
+            {/* Author Attribution Card */}
+            <div className="article-author-card" aria-label="Author Information">
+              <div className="article-author-card-left">
+                <Avatar user={author} size="md" decorative={false} alt={`${authorName}’s portrait`} />
+                <div className="article-author-card-text">
+                  <div className="article-author-card-name-row">
+                    {author ? (
+                      <Link href={`/author/${author.id}`} className="article-author-card-name">
+                        {authorName}
+                      </Link>
+                    ) : (
+                      <span className="article-author-card-name">{authorName}</span>
+                    )}
+                    {author?.role && (
+                      <span className="article-author-role-pill">
+                        {author.role === 'admin'
+                          ? 'Lead Editor'
+                          : author.role === 'editor'
+                          ? 'Editor'
+                          : 'Staff Author'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="article-author-card-meta">
+                    <time dateTime={post.publishedAt || ''}>{formatDate(post.publishedAt)}</time>
+                    <span aria-hidden="true">&bull;</span>
+                    <span
+                      className="reading-time-badge"
+                      aria-label={`Estimated reading time: ${readingTime.text}`}
+                    >
+                      {readingTime.text}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </header>
 
@@ -363,42 +412,47 @@ export default async function PostDetailPage({ params }: PageProps) {
             </figure>
           )}
 
-          {/* Article Body */}
+          {/* Article Long-Form Body with 68ch Max Reading Geometry */}
           <div className="article-body-container">
             <RichText content={post.content} />
           </div>
 
-          {/* Tags */}
+          {/* Filed Under Topic Tags */}
           {tags.length > 0 && (
-            <footer className="article-tags-wrap">
+            <footer className="article-tags-wrap" aria-label="Topic Tags">
               <span className="tags-label">Filed Under:</span>
-              {tags.map((tag) => (
-                <span key={tag.id} className="tag-pill">
-                  #{tag.name}
-                </span>
-              ))}
+              <div className="tags-list">
+                {tags.map((tag) => (
+                  <Link key={tag.id} href={`/tag/${tag.slug}`} className="tag-pill">
+                    #{tag.name}
+                  </Link>
+                ))}
+              </div>
             </footer>
           )}
 
           {/* Related Stories Section */}
           {relatedPosts.length > 0 && (
-            <section className="related-stories-section" aria-label="Related Stories">
+            <section className="article-related-section" aria-label="Related Dispatches">
               <div className="section-header">
-                <div>
-                  <div className="section-eyebrow">More in this section</div>
+                <div className="section-header-left">
+                  <span className="section-kicker">Continue Reading</span>
                   <h2 className="section-title">Related Dispatches</h2>
                 </div>
               </div>
+
               <div className="article-grid">
                 {relatedPosts.map((relPost) => {
                   const relCategory =
                     relPost.categories && relPost.categories.length > 0 && typeof relPost.categories[0] === 'object'
-                      ? (relPost.categories[0] as Category).name
+                      ? (relPost.categories[0] as Category)
                       : null
-                  const relAuthorName =
+
+                  const relAuthor =
                     typeof relPost.author === 'object' && relPost.author
-                      ? (relPost.author as User).name
-                      : 'Foundry Editorial'
+                      ? (relPost.author as User)
+                      : null
+                  const relAuthorName = relAuthor?.name || 'Foundry Editorial'
                   const relReadingTime = calculateReadingTime(relPost.content)
 
                   return (
@@ -414,7 +468,11 @@ export default async function PostDetailPage({ params }: PageProps) {
                         </div>
                       )}
                       <div className="article-card-meta">
-                        {relCategory && <span className="category-badge">{relCategory}</span>}
+                        {relCategory && (
+                          <Link href={`/category/${relCategory.slug}`} className="category-badge">
+                            {relCategory.name}
+                          </Link>
+                        )}
                         <time className="meta-time" dateTime={relPost.publishedAt || ''}>
                           {formatDate(relPost.publishedAt)}
                         </time>
@@ -430,8 +488,17 @@ export default async function PostDetailPage({ params }: PageProps) {
                       </h3>
                       {relPost.excerpt && <p className="article-card-excerpt">{relPost.excerpt}</p>}
                       <div className="article-card-footer">
-                        <span>By {relAuthorName}</span>
-                        <span>Read Story &rarr;</span>
+                        <span className="article-card-byline">
+                          <Avatar user={relAuthor} size="xs" decorative={true} />
+                          {relAuthor ? (
+                            <Link href={`/author/${relAuthor.id}`}>By {relAuthorName}</Link>
+                          ) : (
+                            <span>By {relAuthorName}</span>
+                          )}
+                        </span>
+                        <Link href={`/posts/${relPost.slug}`} className="article-card-cta">
+                          Read Story &rarr;
+                        </Link>
                       </div>
                     </article>
                   )
