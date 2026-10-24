@@ -26,8 +26,15 @@ export function validateEnv(
     errors.push('DATABASE_URI (or DATABASE_URL) is required for database connectivity.')
   } else {
     const trimmedDb = dbUri.trim()
-    if (!trimmedDb.startsWith('postgres://') && !trimmedDb.startsWith('postgresql://')) {
-      errors.push('DATABASE_URI must be a valid PostgreSQL connection string (postgresql://...).')
+    if (
+      !trimmedDb.startsWith('postgres://') &&
+      !trimmedDb.startsWith('postgresql://') &&
+      !trimmedDb.startsWith('mongodb://') &&
+      !trimmedDb.startsWith('mongodb+srv://')
+    ) {
+      errors.push(
+        'DATABASE_URI must be a valid PostgreSQL or MongoDB connection string (postgresql://... or mongodb+srv://...).',
+      )
     }
   }
 

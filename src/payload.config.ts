@@ -1,4 +1,5 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -61,19 +62,27 @@ export default buildConfig({
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   email: getEmailAdapter(),
-  db: postgresAdapter({
-    pool: {
-      connectionString: process.env.DATABASE_URI || process.env.DATABASE_URL || '',
-      ssl:
-        process.env.DATABASE_SSL === 'false' ||
-        (process.env.DATABASE_URI || process.env.DATABASE_URL || '').includes('localhost') ||
-        (process.env.DATABASE_URI || process.env.DATABASE_URL || '').includes('127.0.0.1')
-          ? false
-          : { rejectUnauthorized: false },
-    },
-    prodMigrations: migrations,
-    push: false,
-  }),
+  db: (() => {
+    const uri = process.env.DATABASE_URI || process.env.DATABASE_URL || ''
+    if (uri.startsWith('mongodb://') || uri.startsWith('mongodb+srv://')) {
+      return mongooseAdapter({
+        url: uri,
+      })
+    }
+    return postgresAdapter({
+      pool: {
+        connectionString: uri,
+        ssl:
+          process.env.DATABASE_SSL === 'false' ||
+          uri.includes('localhost') ||
+          uri.includes('127.0.0.1')
+            ? false
+            : { rejectUnauthorized: false },
+      },
+      prodMigrations: migrations,
+      push: false,
+    })
+  })(),
   sharp,
   plugins: [],
 })
