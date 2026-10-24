@@ -11,7 +11,7 @@ import {
 import { calculateReadingTime } from '@/lib/reading-time'
 
 export function StudioAuthoringHUD() {
-  const { hasSavePermission } = useDocumentInfo()
+  const { hasSavePermission, id } = useDocumentInfo()
   const isProcessing = useFormProcessing()
   const isModified = useFormModified()
   const { isLivePreviewing, setIsLivePreviewing, isLivePreviewEnabled } = useLivePreviewContext()
@@ -93,7 +93,8 @@ export function StudioAuthoringHUD() {
     }
   }, [slug, authorizePreview])
 
-  // Determine persistence status badge
+  // Determine persistence status badge truthfully:
+  // "Saved to Desk" appears ONLY after confirmed persistence (id exists, not modified, not processing)
   let statusBadge = (
     <div className="studio-hud-status studio-hud-status-saved" title="All changes saved to database">
       <span className="studio-hud-status-dot" aria-hidden="true" />
@@ -118,6 +119,13 @@ export function StudioAuthoringHUD() {
           <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
         </svg>
         <span>Saving...</span>
+      </div>
+    )
+  } else if (!id) {
+    statusBadge = (
+      <div className="studio-hud-status studio-hud-status-modified" title="New document not yet created">
+        <span className="studio-hud-status-dot-amber" aria-hidden="true" />
+        <span>Unsaved Draft</span>
       </div>
     )
   } else if (isModified) {

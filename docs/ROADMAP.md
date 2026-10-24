@@ -262,11 +262,34 @@ This document outlines the phased development roadmap, milestone dependencies, m
 
 ---
 
-### Milestone FS-UI-010: Comprehensive WCAG 2.2 AA & Responsive Certification
-- **Status:** Planned
+### Milestone FS-UI-010: Autonomous Final Verification, Remediation & Deployment-Readiness Gate
+- **Status:** Complete (Implemented & Verified — Awaiting Deployment-Readiness Review)
 - **Dependencies:** FS-UI-009
-- **Objective:** Complete automated axe-core accessibility regression suite, keyboard navigation certification, and responsive verification across 375px, 768px, 1280px, and 1920px viewports.
+- **Objective:** Complete end-to-end autonomous verification and remediation across all publishing surfaces. Remediate avatar selection to eliminate gender inference and enforce neutral doodle portrait defaults; harden public publication eligibility against elapsed scheduled posts; implement resilient server-side search query parsing, pagination limits, and explicit error handling; eliminate open redirect risks on preview exit; verify dirty-state persistence tracking on authoring desks; and assess deployment readiness.
+- **Measurable Acceptance Criteria:**
+  1. Avatar Selection Remediation: Removed gender inference based on user IDs, parity, or names. Neutral default doodle portrait (`avatar-default.jpg`) assigned deterministically to all users without custom photos. Custom profile images take highest precedence. Invalid image values fall back safely to neutral default. Accessible screen-reader attributes verified (`decorative={true}` sets `aria-hidden="true"` and `alt=""`). (Verified)
+  2. Public Publication Invariant: Scheduled posts with elapsed timestamps strictly quarantined and excluded from all public surfaces (homepage, article pages, search, archives, sitemaps, RSS, structured data) until explicitly transitioned to `published`. (Verified)
+  3. Search Robustness & Isolation: Handled empty/whitespace queries, special characters/punctuation/Unicode safely, validated pagination limits (`limit <= 50`), and explicit database error states preventing misleading empty results. (Verified)
+  4. Authoring Desk & Preview Hardening: Persistence indicators accurately track document persistence (`Saved to Desk` only on confirmed persistence; `Unsaved Changes` on new or modified documents; `Saving...` while processing). Exit preview endpoint hardened against open redirects. (Verified)
+  5. Reading Time Consistency: Shared calculation engine gracefully handles empty Lexical documents (`0 min read`), headings, lists, quotes, and links without reporting false positive reading times. (Verified)
+  6. Automated Verification: 193 integration tests passing across 13 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone Turbopack build compiling cleanly, and live browser audit verified on desktop and mobile viewports. (Verified)
+- **Review Gate:** CTO review and authorization for formal deployment-readiness assessment.
 
+---
+
+### Milestone FS-UI-011: Foundry Studio Product-Level UI Reset
+- **Status:** Complete (Implemented & Verified — Awaiting CTO Review)
+- **Dependencies:** FS-UI-010
+- **Objective:** Transform Foundry Studio from a branded CMS prototype into a coherent, commercially credible editorial publishing product by diagnosing and fixing underlying root causes across presentation, data queries, media fallbacks, authoring states, CSP, and test pollution.
+- **Measurable Acceptance Criteria:**
+  1. Development Overlay Fix: Conditionally configured Next.js CSP `script-src` to allow `'unsafe-eval'` in development only, eliminating Turbopack Fast Refresh CSP violations while keeping production strictly locked down. (Verified)
+  2. Broken Avatar Root Cause Resolution: Configured `admin.avatar: 'default'` in `payload.config.ts` to eliminate external Gravatar requests that were blocked by CSP. Enforced neutral doodle portrait and local SVG fallbacks. (Verified)
+  3. Presentation Sanitizer & Deduplication: Implemented `src/lib/editorial-format.ts` with pure presentation sanitizers (`cleanEditorialTitle`, `cleanEditorialCategory`, `cleanEditorialTag`, `deduplicateCategories`) stripping raw timestamps and IDs from editorial copy without mutating database records. (Verified)
+  4. Broadsheet Typographic Lead Layout: Replaced oversized empty image frames with a distinguished typographic card (`.hero-lead-card--typographic`) featuring warm canvas, flame-orange top accent, and optical measure when photography is absent. (Verified)
+  5. Editorial Dashboard Hierarchy & Visual Calm: Prioritized review queue, drafts, scheduled releases, and live dispatches ahead of quick desk actions; eliminated gratuitous pulsing animations. (Verified)
+  6. Truthful Authoring HUD & Account Styling: Differentiated `Unsaved Draft` from `Unsaved Changes` and confirmed `Saved to Desk`; styled native `.payload-settings` account view within the warm ivory/obsidian theme. (Verified)
+  7. Automated Verification: 203 integration tests passing across 14 test suites (`npm run test:int`), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors, 0 warnings), Next.js standalone Turbopack build compiling cleanly, and live browser audit verified across desktop (1280px) and mobile (390px) viewports. (Verified)
+- **Review Gate:** CTO review and sign-off on FS-UI-011 product reset before deployment planning.
 
 ---
 

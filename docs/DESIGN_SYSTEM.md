@@ -307,21 +307,23 @@ Deterministic reading-time calculation for editorial journalism:
 
 #### 3.3.11. Default Doodle Profile Avatars & Fallback System (FS-UI-009)
 - **Visual Identity Alignment:**
-  - Two original, AI-generated doodle-style illustrated avatars created locally:
-    - `public/avatars/avatar-male.jpg`: Friendly, modern illustrated portrait.
-    - `public/avatars/avatar-female.jpg`: Friendly, modern illustrated portrait.
+- **Visual Identity Alignment:**
+  - Original, AI-generated doodle-style illustrated avatars created locally:
+    - `public/avatars/avatar-default.jpg` & `avatar-neutral.jpg`: Neutral editorial journalist portrait.
+    - `public/avatars/avatar-male.jpg`: Editorial doodle portrait (male journalist).
+    - `public/avatars/avatar-female.jpg`: Editorial doodle portrait (female journalist).
   - Palette: Warm ivory canvas (`#FAF8F5`), obsidian ink line art (`#0F172A`), and restrained DevCrafters flame-orange accents (`#EA580C`).
   - Stored locally as static assets — **zero runtime external HTTP requests and zero recurring costs**.
 - **Deterministic Fallback Engine (`src/lib/avatar.ts`):**
   - Resolves avatar image path and alt text for any user object.
-  - **Precedence Rule:** Custom user-uploaded profile photos take precedence. When absent, the engine falls back to default doodle avatars.
-  - **Deterministic Selection Mechanism:** Explicit user ID parity (`id % 2 === 0 ? male : female`) guarantees consistent, reproducible avatar assignment across all surfaces without guessing or inferring from user names, and without requiring database schema migrations.
-  - Graceful null/undefined safety: Returns male doodle fallback if user is null or undefined.
+  - **Precedence Rule:** Custom user-uploaded profile photos take highest precedence. Explicit user model preferences (`avatarPreference` / `avatarVariant`) are respected if configured. When absent, the engine defaults strictly to the neutral doodle portrait (`avatar-default.jpg`).
+  - **Zero Gender Inference:** Completely eliminates gender inference based on user IDs, parity, names, or arbitrary attributes.
+  - Graceful null/undefined safety: Returns neutral doodle fallback if user is null, undefined, or if image values are malformed.
 - **Accessible Avatar Component (`src/components/ui/Avatar.tsx`):**
-  - Reusable presentation component supporting sizes: `xs` (20px), `sm` (28px), `md` (40px), `lg` (64px), and `xl` (80px).
+  - Reusable presentation component supporting sizes: `xs` (20px), `sm` (28px), `md` (40px), `lg` (72px), and `xl` (80px).
   - Accessible Screen-Reader Treatment:
-    - When `decorative={true}` (default when rendered alongside a visible username/byline), applies `aria-hidden="true"` to prevent redundant screen reader announcements.
-    - When rendered standalone, applies descriptive `alt` text.
+    - When `decorative={true}` (default when rendered alongside a visible username/byline), applies `aria-hidden="true"` and `alt=""` to prevent redundant screen reader announcements.
+    - When rendered standalone (`decorative={false}`), applies descriptive `alt` text (`${user.name}’s avatar` or avatar descriptor alt).
   - Integrated across both Editorial and Public surfaces:
     - Public: Article author attribution card, Author archive header, and Dispatch cards.
     - Editorial: Studio navigation user session card (`StudioNavClient.tsx`) and Newsroom Dashboard review queues (`StudioDashboardView.tsx`).

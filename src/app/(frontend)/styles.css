@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   /* Surfaces */
   --bg-canvas: #FAF8F5;              /* Warm off-white / DevCrafters paper */
   --bg-surface: #FFFFFF;             /* Pure white card / panel */
@@ -44,10 +45,127 @@
   --status-archived-text: #4B5563;
   --status-archived-border: #E5E7EB;
 
+  /* Footer Tokens */
+  --bg-footer: #0F172A;
+  --text-footer: #FAF8F5;
+  --text-footer-muted: #94A3B8;
+  --text-footer-link: #CBD5E1;
+  --text-footer-link-hover: #FFFFFF;
+  --border-footer: rgba(255, 255, 255, 0.08);
+
   /* Typography Scale */
   --font-serif: var(--font-newsreader), "Newsreader", "Charter", "Georgia", "Cambria", serif;
   --font-sans: var(--font-manrope), "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Dark theme: system-aware default via prefers-color-scheme. Explicit
+   data-theme="dark" on <html> overrides this for manual selection. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg-canvas: #16130F;             /* Deep warm charcoal / DevCrafters obsidian */
+    --bg-surface: #1C1917;            /* Elevated panel surface */
+    --bg-surface-elevated: #24211E;   /* Slightly elevated panel */
+    --bg-muted: #2A2723;             /* Subtle container background */
+
+    --text-primary: #F4F1EB;          /* Warm off-white / DevCrafters paper */
+    --text-secondary: #C4BFB5;        /* Editorial slate */
+    --text-muted: #9A948C;            /* Captions, timestamps, metadata */
+    --text-inverse: #0F172A;          /* Text on dark fills */
+
+    --border-subtle: #2A2723;         /* Crisp 1px rule */
+    --border-strong: #4A4540;         /* Active / hovered border */
+
+    --brand-primary: #F4F1EB;         /* Deep editorial obsidian inverted */
+    --brand-accent: #FF8A4A;          /* DevCrafters Flame Orange (brighter for dark) */
+    --brand-accent-text: #FF8A4A;     /* WCAG 2.2 AA compliant orange for text links/labels */
+    --brand-accent-hover: #FF7A32;    /* Deeper burnt orange for hover states */
+    --brand-accent-subtle: rgba(255, 138, 74, 0.12);   /* Subtle orange tint */
+
+    --status-draft-bg: rgba(148, 163, 184, 0.14);
+    --status-draft-text: #CBD5E1;
+    --status-draft-border: rgba(148, 163, 184, 0.28);
+
+    --status-review-bg: rgba(250, 204, 21, 0.14);
+    --status-review-text: #FDE68A;
+    --status-review-border: rgba(253, 230, 138, 0.30);
+
+    --status-scheduled-bg: rgba(99, 102, 241, 0.18);
+    --status-scheduled-text: #C7D2FE;
+    --status-scheduled-border: rgba(199, 210, 254, 0.30);
+
+    --status-published-bg: rgba(16, 185, 129, 0.16);
+    --status-published-text: #6EE7B7;
+    --status-published-border: rgba(110, 231, 183, 0.32);
+
+    --status-archived-bg: rgba(156, 163, 175, 0.14);
+    --status-archived-text: #D1D5DB;
+    --status-archived-border: rgba(209, 213, 219, 0.28);
+
+    /* Footer Tokens */
+    --bg-footer: #0D0B0A;
+    --text-footer: #FAF8F5;
+    --text-footer-muted: #A8A29E;
+    --text-footer-link: #D6D3D1;
+    --text-footer-link-hover: #FFFFFF;
+    --border-footer: #2A2723;
+  }
+}
+
+/* Explicit theme overrides take precedence over system preferences. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-canvas: #16130F;
+  --bg-surface: #1C1917;
+  --bg-surface-elevated: #24211E;
+  --bg-muted: #2A2723;
+
+  --text-primary: #F4F1EB;
+  --text-secondary: #C4BFB5;
+  --text-muted: #9A948C;
+  --text-inverse: #0F172A;
+
+  --border-subtle: #2A2723;
+  --border-strong: #4A4540;
+
+  --brand-primary: #F4F1EB;
+  --brand-accent: #FF8A4A;
+  --brand-accent-text: #FF8A4A;
+  --brand-accent-hover: #FF7A32;
+  --brand-accent-subtle: rgba(255, 138, 74, 0.12);
+
+  --status-draft-bg: rgba(148, 163, 184, 0.14);
+  --status-draft-text: #CBD5E1;
+  --status-draft-border: rgba(148, 163, 184, 0.28);
+
+  --status-review-bg: rgba(250, 204, 21, 0.14);
+  --status-review-text: #FDE68A;
+  --status-review-border: rgba(253, 230, 138, 0.30);
+
+  --status-scheduled-bg: rgba(99, 102, 241, 0.18);
+  --status-scheduled-text: #C7D2FE;
+  --status-scheduled-border: rgba(199, 210, 254, 0.30);
+
+  --status-published-bg: rgba(16, 185, 129, 0.16);
+  --status-published-text: #6EE7B7;
+  --status-published-border: rgba(110, 231, 183, 0.32);
+
+  --status-archived-bg: rgba(156, 163, 175, 0.14);
+  --status-archived-text: #D1D5DB;
+  --status-archived-border: rgba(209, 213, 219, 0.28);
+
+  /* Footer Tokens */
+  --bg-footer: #0D0B0A;
+  --text-footer: #FAF8F5;
+  --text-footer-muted: #A8A29E;
+  --text-footer-link: #D6D3D1;
+  --text-footer-link-hover: #FFFFFF;
+  --border-footer: #2A2723;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {
@@ -750,8 +868,9 @@ a:focus-visible, button:focus-visible {
 /* Site Footer */
 .site-footer {
   margin-top: auto;
-  background-color: var(--brand-primary);
-  color: var(--text-inverse);
+  background-color: var(--bg-footer);
+  color: var(--text-footer);
+  border-top: 1px solid var(--border-footer);
   padding: 3rem 0;
 }
 
@@ -767,11 +886,12 @@ a:focus-visible, button:focus-visible {
   font-family: var(--font-serif);
   font-size: 1.5rem;
   font-weight: 700;
+  color: var(--text-footer);
 }
 
 .footer-desc {
   font-size: 0.8125rem;
-  color: #A1A1AA;
+  color: var(--text-footer-muted);
   margin-top: 0.25rem;
 }
 
@@ -782,11 +902,11 @@ a:focus-visible, button:focus-visible {
 }
 
 .footer-links a {
-  color: #D4D4D8;
+  color: var(--text-footer-link);
 }
 
 .footer-links a:hover {
-  color: #FFFFFF;
+  color: var(--text-footer-link-hover);
 }
 
 /* BrandLockup Component */
@@ -897,12 +1017,12 @@ a:focus-visible, button:focus-visible {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: 0.03em;
-  color: var(--text-inverse);
+  color: var(--text-footer);
 }
 
 .brand-lockup--footer .brand-lockup__footer-endorsement {
   font-size: 0.8125rem;
-  color: #A1A1AA;
+  color: var(--text-footer-muted);
   margin-top: 0.375rem;
   display: flex;
   flex-direction: column;
@@ -910,11 +1030,11 @@ a:focus-visible, button:focus-visible {
 }
 
 .brand-lockup--footer .brand-lockup__parent-credit {
-  color: #E4E4E7;
+  color: var(--text-footer-link);
 }
 
 .brand-lockup--footer .brand-lockup__parent-credit strong {
-  color: #FFFFFF;
+  color: var(--text-footer);
 }
 
 /* StatusBadge Component */
@@ -1080,6 +1200,28 @@ a:focus-visible, button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.hero-lead-card--typographic {
+  padding: 2.25rem 2.25rem 2rem 2.25rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-top: 4px solid var(--brand-accent);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.hero-lead-card--typographic .hero-lead-title {
+  font-size: clamp(2.5rem, 4.5vw, 3.5rem);
+  line-height: 1.12;
+  margin: 0.75rem 0 1.25rem 0;
+}
+
+.hero-lead-card--typographic .hero-lead-excerpt {
+  font-size: 1.25rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  max-width: 68ch;
+  margin-bottom: 1.75rem;
 }
 
 .hero-lead-image-wrap {

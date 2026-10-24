@@ -12,9 +12,7 @@ describe('API', () => {
   })
 
   it('fetches users', async () => {
-    const users = await payload.find({
-      collection: 'users',
-    })
+    const users = await payload.find({ collection: 'users' })
     expect(users).toBeDefined()
   })
 })

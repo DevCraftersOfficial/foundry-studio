@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Category } from '@/payload-types'
+import { cleanEditorialCategory, deduplicateCategories } from '@/lib/editorial-format'
 
 export interface CategoryNavProps {
   /** List of public categories to display */
@@ -26,6 +27,7 @@ export function CategoryNav({
   }
 
   const isFrontPageActive = !activeSlug || activeSlug === 'frontpage'
+  const displayCategories = deduplicateCategories(categories)
 
   return (
     <nav
@@ -46,8 +48,9 @@ export function CategoryNav({
             </Link>
           </li>
 
-          {categories.map((cat) => {
+          {displayCategories.map((cat) => {
             const isActive = activeSlug === cat.slug
+            const cleanName = cleanEditorialCategory(cat.name)
 
             return (
               <li key={cat.id} className="category-nav-item">
@@ -58,7 +61,7 @@ export function CategoryNav({
                   }`.trim()}
                   aria-current={isActive ? 'page' : undefined}
                 >
-                  <span className="category-nav-label">{cat.name}</span>
+                  <span className="category-nav-label">{cleanName}</span>
                 </Link>
               </li>
             )

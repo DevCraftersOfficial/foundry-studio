@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Newsreader, Manrope, JetBrains_Mono } from 'next/font/google'
+import { cookies } from 'next/headers'
 import { getSiteUrl } from '@/lib/site-url'
 import { BrandLockup } from '@/components/ui/BrandLockup'
 import './styles.css'
@@ -39,6 +40,10 @@ export const metadata: Metadata = {
 export default async function RootLayout(props: { children: React.ReactNode }) {
   const { children } = props
 
+  const cookieStore = await cookies()
+  const payloadTheme = cookieStore.get('payload-theme')?.value
+  const theme = payloadTheme === 'dark' || payloadTheme === 'light' ? payloadTheme : undefined
+
   const today = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -49,6 +54,7 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
+      data-theme={theme}
       className={`${newsreader.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
     >
       <body>

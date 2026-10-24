@@ -10,6 +10,7 @@ import { getPublicPostWhere } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { CategoryNav } from '@/components/editorial/CategoryNav'
 import { Avatar } from '@/components/ui/Avatar'
+import { cleanEditorialTitle, cleanEditorialCategory } from '@/lib/editorial-format'
 
 type PageProps = {
   params: Promise<{
@@ -163,14 +164,14 @@ export default async function AuthorArchivePage({ params }: PageProps) {
               {posts.map((post) => {
                 const category =
                   post.categories && post.categories.length > 0 && typeof post.categories[0] === 'object'
-                    ? (post.categories[0] as Category).name
+                    ? cleanEditorialCategory((post.categories[0] as Category).name)
                     : null
 
                 const readingTime = calculateReadingTime(post.content)
 
                 return (
                   <article key={post.id} className="article-card">
-                    {post.featuredImage && typeof post.featuredImage === 'object' && (
+                    {post.featuredImage && typeof post.featuredImage === 'object' && (post.featuredImage as Media).url && (
                       <div className="article-card-image" style={{ position: 'relative' }}>
                         <Image
                           src={(post.featuredImage as Media).url || ''}
@@ -193,7 +194,9 @@ export default async function AuthorArchivePage({ params }: PageProps) {
                       </span>
                     </div>
                     <h3 className="article-card-title">
-                      <Link href={`/posts/${post.slug}`}>{post.title}</Link>
+                      <Link href={`/posts/${post.slug}`}>
+                        {cleanEditorialTitle(post.title)}
+                      </Link>
                     </h3>
                     {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
                     <div className="article-card-footer">
@@ -201,7 +204,9 @@ export default async function AuthorArchivePage({ params }: PageProps) {
                         <Avatar user={author} size="xs" decorative={true} />
                         <span>By {author?.name}</span>
                       </span>
-                      <span>Read Story &rarr;</span>
+                      <Link href={`/posts/${post.slug}`} className="article-card-cta">
+                        Read Story &rarr;
+                      </Link>
                     </div>
                   </article>
                 )

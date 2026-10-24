@@ -53,7 +53,7 @@ export const AdminNavBrand: React.FC = () => {
               fontWeight: 800,
               fontSize: '13px',
               letterSpacing: '0.06em',
-              color: 'var(--theme-elevation-1000, #0F172A)',
+              color: 'var(--admin-logo-text, var(--theme-elevation-1000, currentColor))',
             }}
           >
             FOUNDRY STUDIO

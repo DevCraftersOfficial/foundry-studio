@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useAuth } from '@payloadcms/ui'
+import { useAuth, useTheme } from '@payloadcms/ui'
 import type { SanitizedPermissions, VisibleEntities } from 'payload'
 import { Avatar } from '@/components/ui/Avatar'
 
@@ -126,6 +126,33 @@ function IconWarning() {
   )
 }
 
+function IconThemeAuto() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="20" height="14" x="2" y="3" rx="2" />
+      <line x1="8" x2="16" y1="21" y2="21" />
+      <line x1="12" x2="12" y1="17" y2="21" />
+    </svg>
+  )
+}
+
+function IconThemeLight() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  )
+}
+
+function IconThemeDark() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  )
+}
+
 export const StudioNavClient: React.FC<StudioNavClientProps> = ({
   user,
   permissions: _permissions,
@@ -134,6 +161,7 @@ export const StudioNavClient: React.FC<StudioNavClientProps> = ({
   const pathname = usePathname()
   const router = useRouter()
   const { logOut } = useAuth()
+  const { autoMode, setTheme, theme } = useTheme()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const role = user?.role || 'author'
@@ -375,6 +403,40 @@ export const StudioNavClient: React.FC<StudioNavClientProps> = ({
 
       {/* User Session Footer */}
       <div className="studio-nav-footer">
+        {/* Theme Switcher Segmented Control */}
+        <div className="studio-nav-theme-switcher" role="group" aria-label="Theme mode selection">
+          <button
+            type="button"
+            className={`studio-theme-btn ${autoMode ? 'active' : ''}`}
+            onClick={() => (setTheme as (t: string) => void)('auto')}
+            title="Auto mode: follow system theme"
+            aria-pressed={autoMode}
+          >
+            <IconThemeAuto />
+            <span>Auto</span>
+          </button>
+          <button
+            type="button"
+            className={`studio-theme-btn ${!autoMode && theme === 'light' ? 'active' : ''}`}
+            onClick={() => setTheme('light')}
+            title="Light mode"
+            aria-pressed={!autoMode && theme === 'light'}
+          >
+            <IconThemeLight />
+            <span>Light</span>
+          </button>
+          <button
+            type="button"
+            className={`studio-theme-btn ${!autoMode && theme === 'dark' ? 'active' : ''}`}
+            onClick={() => setTheme('dark')}
+            title="Dark mode"
+            aria-pressed={!autoMode && theme === 'dark'}
+          >
+            <IconThemeDark />
+            <span>Dark</span>
+          </button>
+        </div>
+
         <div className="studio-nav-user-card">
           <Avatar user={user} size="sm" decorative={true} />
           <div className="studio-nav-user-info">

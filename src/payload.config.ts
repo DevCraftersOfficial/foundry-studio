@@ -25,6 +25,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PHASE) {
 export default buildConfig({
   admin: {
     user: Users.slug,
+    avatar: 'default',
     importMap: {
       baseDir: path.resolve(dirname),
     },

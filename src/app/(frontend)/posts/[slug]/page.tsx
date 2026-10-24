@@ -12,6 +12,11 @@ import { getSiteUrl } from '@/lib/site-url'
 import { getPublicPostWhere, isPostPubliclyEligible } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  cleanEditorialTitle,
+  cleanEditorialCategory,
+  cleanEditorialTag,
+} from '@/lib/editorial-format'
 
 type PageProps = {
   params: Promise<{
@@ -338,7 +343,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                 <>
                   <span className="breadcrumb-sep">/</span>
                   <Link href={`/category/${category.slug}`} className="breadcrumb-category">
-                    {category.name}
+                    {cleanEditorialCategory(category.name)}
                   </Link>
                 </>
               )}
@@ -347,12 +352,12 @@ export default async function PostDetailPage({ params }: PageProps) {
             {category && (
               <div className="article-category-badge-wrap">
                 <Link href={`/category/${category.slug}`} className="category-badge">
-                  {category.name}
+                  {cleanEditorialCategory(category.name)}
                 </Link>
               </div>
             )}
 
-            <h1 className="article-title">{post.title}</h1>
+            <h1 className="article-title">{cleanEditorialTitle(post.title)}</h1>
 
             {post.excerpt && <p className="article-standfirst">{post.excerpt}</p>}
 
@@ -424,7 +429,7 @@ export default async function PostDetailPage({ params }: PageProps) {
               <div className="tags-list">
                 {tags.map((tag) => (
                   <Link key={tag.id} href={`/tag/${tag.slug}`} className="tag-pill">
-                    #{tag.name}
+                    #{cleanEditorialTag(tag.name)}
                   </Link>
                 ))}
               </div>
@@ -432,80 +437,95 @@ export default async function PostDetailPage({ params }: PageProps) {
           )}
 
           {/* Related Stories Section */}
-          {relatedPosts.length > 0 && (
-            <section className="article-related-section" aria-label="Related Dispatches">
-              <div className="section-header">
-                <div className="section-header-left">
-                  <span className="section-kicker">Continue Reading</span>
-                  <h2 className="section-title">Related Dispatches</h2>
+          {(() => {
+            const currentClean = cleanEditorialTitle(post.title).toLowerCase()
+            const seenRel = new Set<string>([currentClean])
+            const uniqueRelated = relatedPosts.filter((rp) => {
+              const clean = cleanEditorialTitle(rp.title).toLowerCase()
+              if (seenRel.has(clean)) return false
+              seenRel.add(clean)
+              return true
+            })
+
+            if (uniqueRelated.length === 0) return null
+
+            return (
+              <section className="article-related-section" aria-label="Related Dispatches">
+                <div className="section-header">
+                  <div className="section-header-left">
+                    <span className="section-kicker">Continue Reading</span>
+                    <h2 className="section-title">Related Dispatches</h2>
+                  </div>
                 </div>
-              </div>
 
-              <div className="article-grid">
-                {relatedPosts.map((relPost) => {
-                  const relCategory =
-                    relPost.categories && relPost.categories.length > 0 && typeof relPost.categories[0] === 'object'
-                      ? (relPost.categories[0] as Category)
-                      : null
+                <div className="article-grid">
+                  {uniqueRelated.map((relPost) => {
+                    const relCategory =
+                      relPost.categories && relPost.categories.length > 0 && typeof relPost.categories[0] === 'object'
+                        ? (relPost.categories[0] as Category)
+                        : null
 
-                  const relAuthor =
-                    typeof relPost.author === 'object' && relPost.author
-                      ? (relPost.author as User)
-                      : null
-                  const relAuthorName = relAuthor?.name || 'Foundry Editorial'
-                  const relReadingTime = calculateReadingTime(relPost.content)
+                    const relAuthor =
+                      typeof relPost.author === 'object' && relPost.author
+                        ? (relPost.author as User)
+                        : null
+                    const relAuthorName = relAuthor?.name || 'Foundry Editorial'
+                    const relReadingTime = calculateReadingTime(relPost.content)
 
-                  return (
-                    <article key={relPost.id} className="article-card">
-                      {relPost.featuredImage && typeof relPost.featuredImage === 'object' && (
-                        <div className="article-card-image" style={{ position: 'relative' }}>
-                          <Image
-                            src={(relPost.featuredImage as Media).url || ''}
-                            alt={(relPost.featuredImage as Media).alt || relPost.title}
-                            fill
-                            sizes="(max-width: 768px) 100vw, 33vw"
-                          />
-                        </div>
-                      )}
-                      <div className="article-card-meta">
-                        {relCategory && (
-                          <Link href={`/category/${relCategory.slug}`} className="category-badge">
-                            {relCategory.name}
-                          </Link>
+                    return (
+                      <article key={relPost.id} className="article-card">
+                        {relPost.featuredImage && typeof relPost.featuredImage === 'object' && (relPost.featuredImage as Media).url && (
+                          <div className="article-card-image" style={{ position: 'relative' }}>
+                            <Image
+                              src={(relPost.featuredImage as Media).url || ''}
+                              alt={(relPost.featuredImage as Media).alt || relPost.title}
+                              fill
+                              sizes="(max-width: 768px) 100vw, 33vw"
+                            />
+                          </div>
                         )}
-                        <time className="meta-time" dateTime={relPost.publishedAt || ''}>
-                          {formatDate(relPost.publishedAt)}
-                        </time>
-                        <span
-                          className="reading-time-pill"
-                          aria-label={`Estimated reading time: ${relReadingTime.text}`}
-                        >
-                          {relReadingTime.text}
-                        </span>
-                      </div>
-                      <h3 className="article-card-title">
-                        <Link href={`/posts/${relPost.slug}`}>{relPost.title}</Link>
-                      </h3>
-                      {relPost.excerpt && <p className="article-card-excerpt">{relPost.excerpt}</p>}
-                      <div className="article-card-footer">
-                        <span className="article-card-byline">
-                          <Avatar user={relAuthor} size="xs" decorative={true} />
-                          {relAuthor ? (
-                            <Link href={`/author/${relAuthor.id}`}>By {relAuthorName}</Link>
-                          ) : (
-                            <span>By {relAuthorName}</span>
+                        <div className="article-card-meta">
+                          {relCategory && (
+                            <Link href={`/category/${relCategory.slug}`} className="category-badge">
+                              {cleanEditorialCategory(relCategory.name)}
+                            </Link>
                           )}
-                        </span>
-                        <Link href={`/posts/${relPost.slug}`} className="article-card-cta">
-                          Read Story &rarr;
-                        </Link>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+                          <time className="meta-time" dateTime={relPost.publishedAt || ''}>
+                            {formatDate(relPost.publishedAt)}
+                          </time>
+                          <span
+                            className="reading-time-pill"
+                            aria-label={`Estimated reading time: ${relReadingTime.text}`}
+                          >
+                            {relReadingTime.text}
+                          </span>
+                        </div>
+                        <h3 className="article-card-title">
+                          <Link href={`/posts/${relPost.slug}`}>
+                            {cleanEditorialTitle(relPost.title)}
+                          </Link>
+                        </h3>
+                        {relPost.excerpt && <p className="article-card-excerpt">{relPost.excerpt}</p>}
+                        <div className="article-card-footer">
+                          <span className="article-card-byline">
+                            <Avatar user={relAuthor} size="xs" decorative={true} />
+                            {relAuthor ? (
+                              <Link href={`/author/${relAuthor.id}`}>By {relAuthorName}</Link>
+                            ) : (
+                              <span>By {relAuthorName}</span>
+                            )}
+                          </span>
+                          <Link href={`/posts/${relPost.slug}`} className="article-card-cta">
+                            Read Story &rarr;
+                          </Link>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          })()}
         </div>
       </article>
     </>

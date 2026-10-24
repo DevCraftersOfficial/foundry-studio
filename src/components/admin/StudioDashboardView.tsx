@@ -7,6 +7,8 @@ import {
   getDeskGreeting,
 } from '../../lib/editorial-date'
 import { Avatar } from '../ui/Avatar'
+import { cleanEditorialTitle, cleanEditorialCategory } from '@/lib/editorial-format'
+import { EditorialSparkline } from '../editorial/EditorialSparkline'
 
 export interface DashboardQueueItem {
   id: string | number
@@ -33,6 +35,8 @@ export interface StudioDashboardData {
     published: number
     totalUsers?: number
     totalMedia?: number
+    /** 7-day publication velocity samples (0..N) used to render sparkline trend visuals */
+    velocity: number[]
   }
   reviewQueue: DashboardQueueItem[]
   drafts: DashboardQueueItem[]
@@ -158,6 +162,7 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
   }
 
   const { user, metrics, reviewQueue, drafts, scheduled, published } = data
+  const velocity = metrics.velocity || []
   const role = user.role || 'author'
   const isAuthor = role === 'author'
   const isEditor = role === 'editor'
@@ -251,34 +256,10 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
           </div>
         )}
 
-        {/* Desk Metrics Bar (4 KPI Cards) */}
+        {/* Desk Metrics Bar (4 KPI Cards - Prioritized: 1. Review, 2. Drafts, 3. Scheduled, 4. Live) */}
         <section className="studio-metrics-bar" aria-label="Desk Metrics Overview">
           <div className="studio-metrics-grid">
-            {/* 1. Drafts */}
-            <div className="studio-metric-card" id="metric-card-drafts">
-              <div className="studio-metric-header">
-                <span className="studio-metric-label">Drafts</span>
-                <span className="studio-metric-icon studio-icon-drafts" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </span>
-              </div>
-              <div className="studio-metric-number" id="metric-drafts-count">
-                {metrics.drafts}
-              </div>
-              <div className="studio-metric-footer">
-                <span className="studio-metric-subtext">
-                  {isAuthor ? 'Your active drafts' : 'Work in progress'}
-                </span>
-                <Link href="/admin/collections/posts" className="studio-metric-link" title="Open all drafts in dispatches">
-                  View &rarr;
-                </Link>
-              </div>
-            </div>
-
-            {/* 2. Review Queue */}
+            {/* 1. Review Queue (Priority #1) */}
             <div className={`studio-metric-card ${metrics.inReview > 0 ? 'studio-metric-active-review' : ''}`} id="metric-card-review">
               <div className="studio-metric-header">
                 <span className="studio-metric-label">
@@ -310,7 +291,31 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
               </div>
             </div>
 
-            {/* 3. Scheduled */}
+            {/* 2. Drafts (Priority #2) */}
+            <div className="studio-metric-card" id="metric-card-drafts">
+              <div className="studio-metric-header">
+                <span className="studio-metric-label">Drafts</span>
+                <span className="studio-metric-icon studio-icon-drafts" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </span>
+              </div>
+              <div className="studio-metric-number" id="metric-drafts-count">
+                {metrics.drafts}
+              </div>
+              <div className="studio-metric-footer">
+                <span className="studio-metric-subtext">
+                  {isAuthor ? 'Your active drafts' : 'Work in progress'}
+                </span>
+                <Link href="/admin/collections/posts" className="studio-metric-link" title="Open all drafts in dispatches">
+                  View &rarr;
+                </Link>
+              </div>
+            </div>
+
+            {/* 3. Scheduled (Priority #3) */}
             <div className="studio-metric-card" id="metric-card-scheduled">
               <div className="studio-metric-header">
                 <span className="studio-metric-label">Scheduled</span>
@@ -336,7 +341,7 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
               </div>
             </div>
 
-            {/* 4. Published (Live) */}
+            {/* 4. Published (Live - Priority #4) */}
             <div className="studio-metric-card" id="metric-card-published">
               <div className="studio-metric-header">
                 <span className="studio-metric-label">Live Dispatches</span>
@@ -350,6 +355,15 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
               </div>
               <div className="studio-metric-number" id="metric-published-count">
                 {metrics.published}
+              </div>
+              <div className="studio-metric-trend">
+                <EditorialSparkline
+                  data={velocity}
+                  width={120}
+                  height={34}
+                  color="var(--brand-sparkline-color, #22C55E)"
+                  label="Publication velocity trend"
+                />
               </div>
               <div className="studio-metric-footer">
                 <span className="studio-metric-subtext">Published records</span>
@@ -388,7 +402,7 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
                       <div className="studio-queue-item-main">
                         <div className="studio-queue-item-meta">
                           {item.categoryTitle && (
-                            <span className="studio-category-pill">{item.categoryTitle}</span>
+                            <span className="studio-category-pill">{cleanEditorialCategory(item.categoryTitle)}</span>
                           )}
                           <span className="studio-item-status studio-status-in-review">
                             IN REVIEW
@@ -400,7 +414,7 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
 
                         <h3 className="studio-queue-item-title">
                           <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
-                            {item.title}
+                            {cleanEditorialTitle(item.title)}
                           </Link>
                         </h3>
 
@@ -473,7 +487,7 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
                         </div>
                         <h3 className="studio-draft-title">
                           <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
-                            {item.title}
+                            {cleanEditorialTitle(item.title)}
                           </Link>
                         </h3>
                         {item.authorName && isStaff && (
@@ -515,9 +529,108 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
             </section>
           </div>
 
-          {/* SECONDARY SIDEBAR COLUMN (Quick Actions, Schedule, Recent Live) */}
+          {/* SECONDARY SIDEBAR COLUMN (Prioritized: 3. Schedule, 4. Recent Live, 5. Quick Actions) */}
           <div className="studio-col-secondary">
-            {/* Quick Actions Panel */}
+            {/* Priority 3: Upcoming Scheduled Releases */}
+            <section className="studio-desk-section" aria-labelledby="heading-scheduled" id="section-scheduled">
+              <div className="studio-section-header">
+                <div className="studio-section-title-wrap">
+                  <h2 id="heading-scheduled" className="studio-section-title">Upcoming Releases</h2>
+                  <span className="studio-section-badge studio-badge-blue">
+                    {scheduled.length}
+                  </span>
+                </div>
+              </div>
+
+              {scheduled.length > 0 ? (
+                <div className="studio-scheduled-list" role="list">
+                  {scheduled.map((item) => (
+                    <article key={item.id} className="studio-scheduled-item" role="listitem">
+                      <div className="studio-scheduled-meta">
+                        <span className="studio-item-status studio-status-scheduled">
+                          SCHEDULED
+                        </span>
+                        {item.publishedAt && (
+                          <span className="studio-scheduled-countdown">
+                            {formatScheduledCountdown(item.publishedAt)}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="studio-scheduled-title">
+                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
+                          {cleanEditorialTitle(item.title)}
+                        </Link>
+                      </h3>
+                      {item.authorName && isStaff && (
+                        <span className="studio-author-subline">By {item.authorName}</span>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="studio-empty-card studio-empty-compact" id="empty-scheduled">
+                  <p className="studio-empty-text">No publications scheduled.</p>
+                </div>
+              )}
+            </section>
+
+            {/* Priority 4: Recently Published Dispatches */}
+            <section className="studio-desk-section" aria-labelledby="heading-published" id="section-published">
+              <div className="studio-section-header">
+                <div className="studio-section-title-wrap">
+                  <h2 id="heading-published" className="studio-section-title">Live Dispatches</h2>
+                  <span className="studio-section-badge studio-badge-green">
+                    {published.length}
+                  </span>
+                </div>
+                <Link href="/" target="_blank" rel="noopener noreferrer" className="studio-section-link">
+                  Open Reader &rarr;
+                </Link>
+              </div>
+
+              {published.length > 0 ? (
+                <div className="studio-published-list" role="list">
+                  {published.map((item) => (
+                    <article key={item.id} className="studio-published-item" role="listitem">
+                      <div className="studio-published-meta">
+                        {item.categoryTitle && (
+                          <span className="studio-category-pill">{cleanEditorialCategory(item.categoryTitle)}</span>
+                        )}
+                        <span className="studio-meta-timestamp">
+                          {item.publishedAt ? formatDateShort(item.publishedAt) : 'Live'}
+                        </span>
+                      </div>
+                      <h3 className="studio-published-title">
+                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
+                          {cleanEditorialTitle(item.title)}
+                        </Link>
+                      </h3>
+                      <div className="studio-published-actions">
+                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-link-subtle">
+                          Edit
+                        </Link>
+                        {item.slug && (
+                          <a
+                            href={`/posts/${item.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="studio-link-subtle"
+                          >
+                            View Live &rarr;
+                          </a>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="studio-empty-card studio-empty-compact" id="empty-published">
+                  <p className="studio-empty-text">No published stories yet.</p>
+                </div>
+              )}
+            </section>
+
+            {/* Priority 5: Quick Desk Actions */}
             <section className="studio-desk-section studio-quick-actions-section" aria-labelledby="heading-quick-actions">
               <div className="studio-section-header">
                 <h2 id="heading-quick-actions" className="studio-section-title">Desk Actions</h2>
@@ -595,105 +708,6 @@ export const StudioDashboardView: React.FC<StudioDashboardViewProps> = ({
                   <span>Public Reader &rarr;</span>
                 </Link>
               </nav>
-            </section>
-
-            {/* Upcoming Scheduled Releases */}
-            <section className="studio-desk-section" aria-labelledby="heading-scheduled" id="section-scheduled">
-              <div className="studio-section-header">
-                <div className="studio-section-title-wrap">
-                  <h2 id="heading-scheduled" className="studio-section-title">Upcoming Releases</h2>
-                  <span className="studio-section-badge studio-badge-blue">
-                    {scheduled.length}
-                  </span>
-                </div>
-              </div>
-
-              {scheduled.length > 0 ? (
-                <div className="studio-scheduled-list" role="list">
-                  {scheduled.map((item) => (
-                    <article key={item.id} className="studio-scheduled-item" role="listitem">
-                      <div className="studio-scheduled-meta">
-                        <span className="studio-item-status studio-status-scheduled">
-                          SCHEDULED
-                        </span>
-                        {item.publishedAt && (
-                          <span className="studio-scheduled-countdown">
-                            {formatScheduledCountdown(item.publishedAt)}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="studio-scheduled-title">
-                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
-                          {item.title}
-                        </Link>
-                      </h3>
-                      {item.authorName && isStaff && (
-                        <span className="studio-author-subline">By {item.authorName}</span>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="studio-empty-card studio-empty-compact" id="empty-scheduled">
-                  <p className="studio-empty-text">No publications scheduled.</p>
-                </div>
-              )}
-            </section>
-
-            {/* Recently Published Dispatches */}
-            <section className="studio-desk-section" aria-labelledby="heading-published" id="section-published">
-              <div className="studio-section-header">
-                <div className="studio-section-title-wrap">
-                  <h2 id="heading-published" className="studio-section-title">Live Dispatches</h2>
-                  <span className="studio-section-badge studio-badge-green">
-                    {published.length}
-                  </span>
-                </div>
-                <Link href="/" target="_blank" rel="noopener noreferrer" className="studio-section-link">
-                  Open Reader &rarr;
-                </Link>
-              </div>
-
-              {published.length > 0 ? (
-                <div className="studio-published-list" role="list">
-                  {published.map((item) => (
-                    <article key={item.id} className="studio-published-item" role="listitem">
-                      <div className="studio-published-meta">
-                        {item.categoryTitle && (
-                          <span className="studio-category-pill">{item.categoryTitle}</span>
-                        )}
-                        <span className="studio-meta-timestamp">
-                          {item.publishedAt ? formatDateShort(item.publishedAt) : 'Live'}
-                        </span>
-                      </div>
-                      <h3 className="studio-published-title">
-                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-headline-link">
-                          {item.title}
-                        </Link>
-                      </h3>
-                      <div className="studio-published-actions">
-                        <Link href={`/admin/collections/posts/${item.id}`} className="studio-link-subtle">
-                          Edit
-                        </Link>
-                        {item.slug && (
-                          <a
-                            href={`/posts/${item.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="studio-link-subtle"
-                          >
-                            View Live &rarr;
-                          </a>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="studio-empty-card studio-empty-compact" id="empty-published">
-                  <p className="studio-empty-text">No published stories yet.</p>
-                </div>
-              )}
             </section>
           </div>
         </div>

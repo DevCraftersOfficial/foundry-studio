@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import React from 'react'
@@ -9,6 +9,8 @@ import type { User, Post, Category, Tag } from '@/payload-types'
 import { getUserAvatar, DEFAULT_AVATARS } from '@/lib/avatar'
 import { Avatar } from '@/components/ui/Avatar'
 import { BrandLockup } from '@/components/ui/BrandLockup'
+import { getPublicPostWhere, isPostPubliclyEligible } from '@/lib/publishing'
+import { calculateReadingTime, extractTextFromLexical } from '@/lib/reading-time'
 import robots from '@/app/robots'
 import sitemap from '@/app/sitemap'
 
@@ -50,8 +52,9 @@ let testTag: Tag
 let publishedPost1: Post
 let publishedPost2: Post
 let draftPost: Post
+let scheduledPastPost: Post
 
-describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', () => {
+describe('FS-UI-009 / FS-UI-010: Public Reader Redesign, Doodle Avatars & Security Gate', () => {
   beforeAll(async () => {
     const payloadConfig = await config
     payload = await getPayload({ config: payloadConfig })
@@ -103,15 +106,15 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
       overrideAccess: true,
     })
 
-    // 3. Create Published Posts
-    const pastDate = new Date(Date.now() - 3600000).toISOString()
+    const pastDate = new Date(Date.now() - 3600 * 1000).toISOString()
 
+    // 3. Create Eligible Published Posts
     publishedPost1 = await payload.create({
       collection: 'posts',
       data: {
         title: `The Architecture of Independent Journalism ${timestamp}`,
-        slug: `independent-journalism-${timestamp}`,
-        excerpt: 'An investigation into editorial freedom and modern publishing infrastructure.',
+        slug: `architecture-of-journalism-${timestamp}`,
+        excerpt: 'An investigation into modern digital publishing tools and editorial independence.',
         content: sampleLexicalContent,
         status: 'published',
         publishedAt: pastDate,
@@ -125,8 +128,8 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
     publishedPost2 = await payload.create({
       collection: 'posts',
       data: {
-        title: `Design Systems for Contemporary Newsrooms ${timestamp}`,
-        slug: `newsroom-design-systems-${timestamp}`,
+        title: `Typographic Systems for Long-Form Reading ${timestamp}`,
+        slug: `typographic-systems-${timestamp}`,
         excerpt: 'Crafting legible, typography-first readers for critical public audiences.',
         content: sampleLexicalContent,
         status: 'published',
@@ -152,47 +155,69 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
       },
       overrideAccess: true,
     })
+
+    // 5. Create Scheduled Post whose publication timestamp has passed (must NEVER leak while status remains 'scheduled')
+    scheduledPastPost = await payload.create({
+      collection: 'posts',
+      data: {
+        title: `Scheduled In Past Dispatch ${timestamp}`,
+        slug: `scheduled-past-${timestamp}`,
+        excerpt: 'Scheduled post whose timestamp has passed but status remains scheduled.',
+        content: sampleLexicalContent,
+        status: 'scheduled',
+        publishedAt: pastDate,
+        author: testAuthorEven.id,
+        categories: [testCategory.id],
+        tags: [testTag.id],
+      },
+      overrideAccess: true,
+      context: { allowPastScheduled: true },
+    })
   })
 
-  describe('1. Default Doodle Profile Avatars Architecture', () => {
-    it('verifies local physical existence of both doodle avatar assets in public/avatars', () => {
+  describe('1. Default Doodle Profile Avatars Architecture & Neutral Selection', () => {
+    it('verifies local physical existence of default and variant doodle avatar assets in public/avatars', () => {
+      const defaultPath = path.resolve(process.cwd(), 'public/avatars/avatar-default.jpg')
+      const neutralPath = path.resolve(process.cwd(), 'public/avatars/avatar-neutral.jpg')
       const malePath = path.resolve(process.cwd(), 'public/avatars/avatar-male.jpg')
       const femalePath = path.resolve(process.cwd(), 'public/avatars/avatar-female.jpg')
 
+      expect(fs.existsSync(defaultPath)).toBe(true)
+      expect(fs.existsSync(neutralPath)).toBe(true)
       expect(fs.existsSync(malePath)).toBe(true)
       expect(fs.existsSync(femalePath)).toBe(true)
 
-      const maleStats = fs.statSync(malePath)
-      const femaleStats = fs.statSync(femalePath)
-
-      expect(maleStats.size).toBeGreaterThan(1000)
-      expect(femaleStats.size).toBeGreaterThan(1000)
+      expect(fs.statSync(defaultPath).size).toBeGreaterThan(1000)
+      expect(fs.statSync(neutralPath).size).toBeGreaterThan(1000)
+      expect(fs.statSync(malePath).size).toBeGreaterThan(1000)
+      expect(fs.statSync(femalePath).size).toBeGreaterThan(1000)
     })
 
-    it('deterministically selects avatars based strictly on user ID parity', () => {
-      // Even ID -> Male avatar
-      const evenUser = { id: 42, name: 'Alex' }
-      const evenAvatar = getUserAvatar(evenUser)
-      expect(evenAvatar.url).toBe('/avatars/avatar-male.jpg')
-      expect(evenAvatar.variant).toBe('male')
+    it('returns neutral default avatar without gender inference from user ID or parity', () => {
+      // Regardless of even, odd, numeric, string or negative ID, default is neutral
+      const userEven = { id: 42, name: 'Alex' }
+      const userOdd = { id: 43, name: 'Taylor' }
+      const userString = { id: 'usr-abc-123', name: 'Jordan' }
 
-      // Odd ID -> Female avatar
-      const oddUser = { id: 43, name: 'Taylor' }
-      const oddAvatar = getUserAvatar(oddUser)
-      expect(oddAvatar.url).toBe('/avatars/avatar-female.jpg')
-      expect(oddAvatar.variant).toBe('female')
+      expect(getUserAvatar(userEven).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar(userEven).variant).toBe('default')
+
+      expect(getUserAvatar(userOdd).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar(userOdd).variant).toBe('default')
+
+      expect(getUserAvatar(userString).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar(userString).variant).toBe('default')
     })
 
     it('never infers or mutates avatar selection based on user name', () => {
-      // Different names with the same ID yield the EXACT same avatar
       const userA = { id: 100, name: 'Arthur Conan' }
       const userB = { id: 100, name: 'Agatha Christie' }
 
       expect(getUserAvatar(userA).url).toBe(getUserAvatar(userB).url)
-      expect(getUserAvatar(userA).variant).toBe('male')
+      expect(getUserAvatar(userA).url).toBe('/avatars/avatar-default.jpg')
     })
 
-    it('preserves existing custom profile image if present on user model', () => {
+    it('preserves existing custom profile image if present on user model as highest priority', () => {
       const customUser = {
         id: 42,
         name: 'Custom User',
@@ -203,16 +228,38 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
       expect(customAvatar.variant).toBe('custom')
     })
 
-    it('safely handles null, undefined, or missing user entities', () => {
-      const nullAvatar = getUserAvatar(null)
-      expect(nullAvatar.url).toBe(DEFAULT_AVATARS.male.url)
+    it('supports custom profile media objects with url and alt text', () => {
+      const mediaUser = {
+        id: 45,
+        name: 'Media User',
+        avatar: { url: '/media/my-portrait.webp', alt: 'Hand-drawn portrait' },
+      }
+      const avatar = getUserAvatar(mediaUser)
+      expect(avatar.url).toBe('/media/my-portrait.webp')
+      expect(avatar.alt).toBe('Hand-drawn portrait')
+      expect(avatar.variant).toBe('custom')
+    })
 
-      const undefinedAvatar = getUserAvatar(undefined)
-      expect(undefinedAvatar.url).toBe(DEFAULT_AVATARS.male.url)
+    it('gracefully falls back to neutral default when custom avatar is empty or malformed', () => {
+      expect(getUserAvatar({ id: 1, avatar: '' }).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar({ id: 1, avatar: '   ' }).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar({ id: 1, avatar: {} }).url).toBe('/avatars/avatar-default.jpg')
+      expect(getUserAvatar({ id: 1, avatar: { url: '' } }).url).toBe('/avatars/avatar-default.jpg')
+    })
+
+    it('respects explicit avatar preferences when provided in model', () => {
+      expect(getUserAvatar({ id: 10, avatarPreference: 'male' }).variant).toBe('male')
+      expect(getUserAvatar({ id: 10, avatarPreference: 'female' }).variant).toBe('female')
+      expect(getUserAvatar({ id: 10, avatarPreference: 'neutral' }).variant).toBe('neutral')
+    })
+
+    it('safely handles null, undefined, or missing user entities', () => {
+      expect(getUserAvatar(null).url).toBe(DEFAULT_AVATARS.default.url)
+      expect(getUserAvatar(undefined).url).toBe(DEFAULT_AVATARS.default.url)
     })
 
     it('renders accessible screen-reader attributes in Avatar component', () => {
-      // Decorative avatar has aria-hidden="true"
+      // Decorative avatar has aria-hidden="true" and alt=""
       const decorativeHtml = renderToStaticMarkup(
         React.createElement(Avatar, { user: { id: 2, name: 'Julian' }, size: 'sm', decorative: true })
       )
@@ -229,17 +276,45 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
     })
   })
 
-  describe('2. Public Reader Editorial Hierarchy & Publication Eligibility', () => {
+  describe('2. Public Reader Editorial Hierarchy & Publication Eligibility Invariant', () => {
     it('strictly excludes unpublished drafts from public sitemap', async () => {
       const sitemapEntries = await sitemap()
       const urls = sitemapEntries.map((e) => e.url)
 
-      // Published posts must be present
       expect(urls.some((u) => u.includes(publishedPost1.slug))).toBe(true)
       expect(urls.some((u) => u.includes(publishedPost2.slug))).toBe(true)
-
-      // Unpublished draft must NEVER be present
       expect(urls.some((u) => u.includes(draftPost.slug))).toBe(false)
+    })
+
+    it('strictly excludes past-scheduled posts from public sitemap while status remains "scheduled"', async () => {
+      const sitemapEntries = await sitemap()
+      const urls = sitemapEntries.map((e) => e.url)
+
+      // Even though publishedAt is in the past, status is scheduled -> MUST NOT be in sitemap
+      expect(urls.some((u) => u.includes(scheduledPastPost.slug))).toBe(false)
+    })
+
+    it('isPostPubliclyEligible deterministically rejects scheduled posts even with elapsed timestamps', () => {
+      const now = Date.now()
+      expect(isPostPubliclyEligible(scheduledPastPost, now)).toBe(false)
+      expect(isPostPubliclyEligible(draftPost, now)).toBe(false)
+      expect(isPostPubliclyEligible(publishedPost1, now)).toBe(true)
+    })
+
+    it('getPublicPostWhere strictly rejects scheduled posts with elapsed timestamps', async () => {
+      const now = new Date().toISOString()
+      const queryResults = await payload.find({
+        collection: 'posts',
+        where: {
+          and: [
+            getPublicPostWhere(now),
+            { slug: { equals: scheduledPastPost.slug } },
+          ],
+        },
+        overrideAccess: true,
+      })
+
+      expect(queryResults.docs.length).toBe(0)
     })
 
     it('indexes eligible author archives and topic tag archives in sitemap.xml', async () => {
@@ -262,12 +337,10 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
     })
   })
 
-  describe('3. Public Server-Side Search Invariants', () => {
+  describe('3. Public Server-Side Search Invariants & Robustness', () => {
     it('returns published posts matching search query and strictly blocks drafts', async () => {
       const now = new Date().toISOString()
-      const { getPublicPostWhere } = await import('@/lib/publishing')
 
-      // Search for keyword present in both publishedPost1 and draftPost ("investigation" / "investigative")
       const searchResults = await payload.find({
         collection: 'posts',
         where: {
@@ -292,12 +365,58 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
       // Draft post contains keyword in excerpt but MUST NEVER be returned
       expect(returnedSlugs).not.toContain(draftPost.slug)
     })
+
+    it('strictly excludes past-scheduled posts from search results', async () => {
+      const now = new Date().toISOString()
+
+      const searchResults = await payload.find({
+        collection: 'posts',
+        where: {
+          and: [
+            getPublicPostWhere(now),
+            {
+              or: [
+                { title: { like: 'Scheduled' } },
+                { excerpt: { like: 'Scheduled' } },
+              ],
+            },
+          ],
+        },
+        overrideAccess: true,
+      })
+
+      const returnedSlugs = (searchResults.docs as Post[]).map((d) => d.slug)
+      expect(returnedSlugs).not.toContain(scheduledPastPost.slug)
+    })
+
+    it('safely handles special characters, punctuation, and Unicode input in search query', async () => {
+      const now = new Date().toISOString()
+      const specialQueries = ['#journalism', 'typography & design', '100%', "editor's pick", '日本語', '★']
+
+      for (const q of specialQueries) {
+        const results = await payload.find({
+          collection: 'posts',
+          where: {
+            and: [
+              getPublicPostWhere(now),
+              {
+                or: [
+                  { title: { like: q } },
+                  { excerpt: { like: q } },
+                ],
+              },
+            ],
+          },
+          overrideAccess: true,
+        })
+        expect(Array.isArray(results.docs)).toBe(true)
+      }
+    })
   })
 
   describe('4. Author Archive Route Security & Boundaries', () => {
     it('author archive strictly scopes dispatches to requested author and public eligibility', async () => {
       const now = new Date().toISOString()
-      const { getPublicPostWhere } = await import('@/lib/publishing')
 
       // Query Author Even's published dispatches
       const authorResults = await payload.find({
@@ -321,10 +440,94 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
 
       // Strictly does NOT contain Author Even's unpublished draft
       expect(returnedSlugs).not.toContain(draftPost.slug)
+
+      // Strictly does NOT contain Author Even's scheduled post
+      expect(returnedSlugs).not.toContain(scheduledPastPost.slug)
     })
   })
 
-  describe('5. Obsolete Copy Removal & Brand System Verification', () => {
+  describe('5. Exit Preview Security & Open Redirect Protection', () => {
+    it('rejects external URLs and protocol-relative destinations in GET /api/exit-preview', async () => {
+      const { GET } = await import('@/app/api/exit-preview/route')
+
+      const testCases = [
+        'https://evil.com',
+        'http://attacker.org/steal',
+        '//malicious.com',
+        'javascript:alert(1)',
+        '\\evil.com',
+      ]
+
+      for (const maliciousTarget of testCases) {
+        const req = new Request(`http://localhost:3000/api/exit-preview?redirect=${encodeURIComponent(maliciousTarget)}`)
+        let redirectTarget = ''
+        try {
+          await GET(req)
+        } catch (err: unknown) {
+          if (
+            (err as Error)?.message === 'NEXT_REDIRECT' ||
+            (err as { digest?: string })?.digest?.includes('NEXT_REDIRECT')
+          ) {
+            // Next.js redirect thrown successfully
+            redirectTarget = (err as { digest?: string })?.digest || ''
+          }
+        }
+        // Must redirect to root '/' and never to external URL
+        expect(redirectTarget).not.toContain('evil.com')
+        expect(redirectTarget).not.toContain('attacker.org')
+        expect(redirectTarget).not.toContain('malicious.com')
+      }
+    })
+  })
+
+  describe('6. Reading-Time Calculation Engine Coverage', () => {
+    it('returns 0 min read for empty lexical content without reporting misleading positive times', () => {
+      expect(calculateReadingTime(null).text).toBe('0 min read')
+      expect(calculateReadingTime(undefined).text).toBe('0 min read')
+      expect(calculateReadingTime('').text).toBe('0 min read')
+      expect(calculateReadingTime('   ').text).toBe('0 min read')
+      expect(calculateReadingTime({ root: { children: [] } }).text).toBe('0 min read')
+    })
+
+    it('recursively extracts plain text across headings, lists, quotes, and links in Lexical AST', () => {
+      const richLexical = {
+        root: {
+          children: [
+            { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'Section Title' }] },
+            { type: 'paragraph', children: [{ type: 'text', text: 'Intro paragraph.' }] },
+            {
+              type: 'list',
+              listType: 'bullet',
+              children: [
+                { type: 'listitem', children: [{ type: 'text', text: 'Item one' }] },
+                { type: 'listitem', children: [{ type: 'text', text: 'Item two' }] },
+              ],
+            },
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'link', url: 'https://example.com', children: [{ type: 'text', text: 'Linked text' }] },
+              ],
+            },
+          ],
+        },
+      }
+
+      const extracted = extractTextFromLexical(richLexical)
+      expect(extracted).toContain('Section Title')
+      expect(extracted).toContain('Intro paragraph.')
+      expect(extracted).toContain('Item one')
+      expect(extracted).toContain('Item two')
+      expect(extracted).toContain('Linked text')
+
+      const time = calculateReadingTime(richLexical)
+      expect(time.words).toBeGreaterThan(5)
+      expect(time.minutes).toBe(1)
+      expect(time.text).toBe('1 min read')
+    })
+  })
+
+  describe('7. Obsolete Copy Removal & Brand System Verification', () => {
     it('verifies obsolete open-source platform endorsement has been removed from BrandLockup', () => {
       const html = renderToStaticMarkup(
         React.createElement(BrandLockup, { variant: 'footer', href: '/' })
@@ -332,7 +535,23 @@ describe('FS-UI-009: Foundry Studio Public Reader Redesign & Doodle Avatars', ()
 
       expect(html).not.toContain('An Open-Source Editorial Publishing Platform')
       expect(html).toContain('Editorial Publishing Platform')
-      expect(html).toContain('DevCrafters')
     })
   })
+
+  afterAll(async () => {
+    if (!payload) return
+    try {
+      if (publishedPost1?.id) await payload.delete({ collection: 'posts', id: publishedPost1.id, overrideAccess: true })
+      if (publishedPost2?.id) await payload.delete({ collection: 'posts', id: publishedPost2.id, overrideAccess: true })
+      if (draftPost?.id) await payload.delete({ collection: 'posts', id: draftPost.id, overrideAccess: true })
+      if (scheduledPastPost?.id) await payload.delete({ collection: 'posts', id: scheduledPastPost.id, overrideAccess: true })
+      if (testCategory?.id) await payload.delete({ collection: 'categories', id: testCategory.id, overrideAccess: true })
+      if (testTag?.id) await payload.delete({ collection: 'tags', id: testTag.id, overrideAccess: true })
+      if (testAuthorEven?.id) await payload.delete({ collection: 'users', id: testAuthorEven.id, overrideAccess: true })
+      if (testAuthorOdd?.id) await payload.delete({ collection: 'users', id: testAuthorOdd.id, overrideAccess: true })
+    } catch {
+      // Best-effort test fixture cleanup
+    }
+  })
 })
+

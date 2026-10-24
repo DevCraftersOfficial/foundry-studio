@@ -52,6 +52,8 @@ function mapPostToQueueItem(doc: PostDocLike): DashboardQueueItem {
   }
 }
 
+import type { Where } from 'payload'
+
 async function fetchDashboardData(
   payloadInstance: Payload,
   user: TypedUserRecord,
@@ -60,10 +62,46 @@ async function fetchDashboardData(
   const isAuthor = role === 'author'
   const isAdmin = role === 'admin'
 
+  // Helper: build 7-day publication velocity array (counts per day, oldest → newest)
+  async function getVelocity(authorId?: string | number): Promise<number[]> {
+    const now = new Date()
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    const sevenDaysAgo = new Date(startOfToday.getTime() - 7 * 86400000)
+
+    const baseWhere: Where = {
+      and: [
+        { status: { equals: 'published' } },
+        { publishedAt: { greater_than_equal: sevenDaysAgo.toISOString() } },
+      ],
+    };
+    if (!baseWhere.and) baseWhere.and = []
+    const where: Where = authorId !== undefined
+      ? { and: baseWhere.and.concat({ author: { equals: authorId } }) }
+      : baseWhere
+
+    const res = await payloadInstance.find({
+      collection: 'posts',
+      where,
+      limit: 500,
+      depth: 0,
+      overrideAccess: false,
+      user,
+    })
+
+    const counts = new Array(7).fill(0)
+    for (const doc of res.docs as Array<{ publishedAt?: string }>) {
+      if (!doc.publishedAt) continue
+      const d = new Date(doc.publishedAt)
+      const dayIdx = Math.floor((startOfToday.getTime() - new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).getTime()) / 86400000)
+      if (dayIdx >= 0 && dayIdx < 7) counts[dayIdx]++
+    }
+    return counts.reverse() // oldest → newest
+  }
+
   try {
     if (isAuthor) {
       // Authors: Strictly query own drafts, own submissions in review, own scheduled, and published posts
-      const [draftsRes, inReviewRes, scheduledRes, publishedRes] = await Promise.all([
+      const [draftsRes, inReviewRes, scheduledRes, publishedRes, velocity] = await Promise.all([
         payloadInstance.find({
           collection: 'posts',
           where: {
@@ -117,6 +155,7 @@ async function fetchDashboardData(
           overrideAccess: false,
           user,
         }),
+        getVelocity(user.id),
       ])
 
       return {
@@ -132,6 +171,7 @@ async function fetchDashboardData(
             inReview: inReviewRes.totalDocs,
             scheduled: scheduledRes.totalDocs,
             published: publishedRes.totalDocs,
+            velocity,
           },
           reviewQueue: (inReviewRes.docs as PostDocLike[]).map(mapPostToQueueItem),
           drafts: (draftsRes.docs as PostDocLike[]).map(mapPostToQueueItem),
@@ -142,7 +182,7 @@ async function fetchDashboardData(
     }
 
     // Editors and Admins: Full newsroom visibility across all authors
-    const [draftsRes, inReviewRes, scheduledRes, publishedRes, usersCount, mediaCount] = await Promise.all([
+    const [draftsRes, inReviewRes, scheduledRes, publishedRes, usersCount, mediaCount, velocity] = await Promise.all([
       payloadInstance.find({
         collection: 'posts',
         where: {
@@ -193,6 +233,7 @@ async function fetchDashboardData(
       isAdmin
         ? payloadInstance.count({ collection: 'media' })
         : Promise.resolve({ totalDocs: 0 }),
+      getVelocity(),
     ])
 
     return {
@@ -210,6 +251,7 @@ async function fetchDashboardData(
           published: publishedRes.totalDocs,
           totalUsers: isAdmin ? usersCount.totalDocs : undefined,
           totalMedia: isAdmin ? mediaCount.totalDocs : undefined,
+          velocity,
         },
         reviewQueue: (inReviewRes.docs as PostDocLike[]).map(mapPostToQueueItem),
         drafts: (draftsRes.docs as PostDocLike[]).map(mapPostToQueueItem),

@@ -9,6 +9,11 @@ import { getPublicPostWhere } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { CategoryNav } from '@/components/editorial/CategoryNav'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  cleanEditorialTitle,
+  cleanEditorialCategory,
+  deduplicateCategories,
+} from '@/lib/editorial-format'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,22 +55,46 @@ export default async function HomePage() {
     where: getPublicPostWhere(now),
     sort: '-publishedAt',
     depth: 2,
-    limit: 12,
+    limit: 20,
   })
 
   // 2. Fetch categories for navigation and beats section
   const categoriesData = await payload.find({
     collection: 'categories',
     sort: 'name',
-    limit: 10,
+    limit: 20,
   })
 
   const posts = postsData.docs as Post[]
   const categories = categoriesData.docs as Category[]
 
   const featuredPost = posts.length > 0 ? posts[0] : null
-  const secondaryPost = posts.length > 1 ? posts[1] : null
-  const gridPosts = posts.length > 2 ? posts.slice(2) : []
+
+  // Intentionally select a distinct secondary story so the hero viewport never duplicates the lead story
+  const secondaryPost =
+    posts.find(
+      (p) =>
+        p.id !== featuredPost?.id &&
+        cleanEditorialTitle(p.title).toLowerCase() !== cleanEditorialTitle(featuredPost?.title).toLowerCase(),
+    ) || (posts.length > 1 && posts[1].id !== featuredPost?.id ? posts[1] : null)
+
+  const usedIds = new Set<string | number>([featuredPost?.id, secondaryPost?.id].filter(Boolean) as (string | number)[])
+  const seenGridTitles = new Set<string>(
+    [
+      cleanEditorialTitle(featuredPost?.title).toLowerCase(),
+      cleanEditorialTitle(secondaryPost?.title).toLowerCase(),
+    ].filter(Boolean),
+  )
+
+  // Deduplicate grid posts by story identity to avoid repetitive synthetic test dispatches on the frontpage
+  const gridPosts: Post[] = []
+  for (const p of posts) {
+    if (usedIds.has(p.id)) continue
+    const cleanTitle = cleanEditorialTitle(p.title).toLowerCase()
+    if (seenGridTitles.has(cleanTitle)) continue
+    seenGridTitles.add(cleanTitle)
+    gridPosts.push(p)
+  }
 
   const featuredReadingTime = featuredPost ? calculateReadingTime(featuredPost.content) : null
   const secondaryReadingTime = secondaryPost ? calculateReadingTime(secondaryPost.content) : null
@@ -90,6 +119,20 @@ export default async function HomePage() {
       ? (secondaryPost.categories[0] as Category)
       : null
 
+  const hasFeaturedImage = Boolean(
+    featuredPost?.featuredImage &&
+      typeof featuredPost.featuredImage === 'object' &&
+      (featuredPost.featuredImage as Media).url,
+  )
+
+  const hasSecondaryImage = Boolean(
+    secondaryPost?.featuredImage &&
+      typeof secondaryPost.featuredImage === 'object' &&
+      (secondaryPost.featuredImage as Media).url,
+  )
+
+  const displayCategories = deduplicateCategories(categories)
+
   return (
     <div>
       {/* Category Navigation Bar */}
@@ -101,9 +144,9 @@ export default async function HomePage() {
           <section className="editorial-hero" aria-label="Lead Stories">
             <div className={`editorial-hero-grid ${secondaryPost ? 'editorial-hero-grid--dual' : 'editorial-hero-grid--single'}`}>
               {/* Primary Lead Story (Broadsheet Hero) */}
-              <article className="hero-lead-card">
-                <div className="hero-lead-image-wrap">
-                  {featuredPost.featuredImage && typeof featuredPost.featuredImage === 'object' ? (
+              <article className={`hero-lead-card ${!hasFeaturedImage ? 'hero-lead-card--typographic' : ''}`}>
+                {hasFeaturedImage && (
+                  <div className="hero-lead-image-wrap">
                     <Image
                       src={(featuredPost.featuredImage as Media).url || ''}
                       alt={(featuredPost.featuredImage as Media).alt || featuredPost.title}
@@ -112,18 +155,14 @@ export default async function HomePage() {
                       className="hero-lead-image"
                       priority
                     />
-                  ) : (
-                    <div className="hero-image-placeholder">
-                      <span>Foundry Lead Dispatch</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="hero-lead-content">
                   <div className="hero-meta">
                     {featuredCategory && (
                       <Link href={`/category/${featuredCategory.slug}`} className="category-badge">
-                        {featuredCategory.name}
+                        {cleanEditorialCategory(featuredCategory.name)}
                       </Link>
                     )}
                     <time className="meta-time" dateTime={featuredPost.publishedAt || ''}>
@@ -140,7 +179,9 @@ export default async function HomePage() {
                   </div>
 
                   <h1 className="hero-lead-title">
-                    <Link href={`/posts/${featuredPost.slug}`}>{featuredPost.title}</Link>
+                    <Link href={`/posts/${featuredPost.slug}`}>
+                      {cleanEditorialTitle(featuredPost.title)}
+                    </Link>
                   </h1>
 
                   {featuredPost.excerpt && (
@@ -173,7 +214,7 @@ export default async function HomePage() {
                     <span className="hero-section-kicker">Editor’s Selection</span>
                   </div>
 
-                  {secondaryPost.featuredImage && typeof secondaryPost.featuredImage === 'object' && (
+                  {hasSecondaryImage && (
                     <div className="hero-secondary-image-wrap">
                       <Image
                         src={(secondaryPost.featuredImage as Media).url || ''}
@@ -189,7 +230,7 @@ export default async function HomePage() {
                     <div className="hero-meta">
                       {secondaryCategory && (
                         <Link href={`/category/${secondaryCategory.slug}`} className="category-badge">
-                          {secondaryCategory.name}
+                          {cleanEditorialCategory(secondaryCategory.name)}
                         </Link>
                       )}
                       <time className="meta-time" dateTime={secondaryPost.publishedAt || ''}>
@@ -206,7 +247,9 @@ export default async function HomePage() {
                     </div>
 
                     <h2 className="hero-secondary-title">
-                      <Link href={`/posts/${secondaryPost.slug}`}>{secondaryPost.title}</Link>
+                      <Link href={`/posts/${secondaryPost.slug}`}>
+                        {cleanEditorialTitle(secondaryPost.title)}
+                      </Link>
                     </h2>
 
                     {secondaryPost.excerpt && (
@@ -260,7 +303,7 @@ export default async function HomePage() {
 
                 return (
                   <article key={post.id} className="article-card">
-                    {post.featuredImage && typeof post.featuredImage === 'object' && (
+                    {post.featuredImage && typeof post.featuredImage === 'object' && (post.featuredImage as Media).url && (
                       <div className="article-card-image" style={{ position: 'relative' }}>
                         <Image
                           src={(post.featuredImage as Media).url || ''}
@@ -273,7 +316,7 @@ export default async function HomePage() {
                     <div className="article-card-meta">
                       {category && (
                         <Link href={`/category/${category.slug}`} className="category-badge">
-                          {category.name}
+                          {cleanEditorialCategory(category.name)}
                         </Link>
                       )}
                       <time className="meta-time" dateTime={post.publishedAt || ''}>
@@ -287,7 +330,9 @@ export default async function HomePage() {
                       </span>
                     </div>
                     <h3 className="article-card-title">
-                      <Link href={`/posts/${post.slug}`}>{post.title}</Link>
+                      <Link href={`/posts/${post.slug}`}>
+                        {cleanEditorialTitle(post.title)}
+                      </Link>
                     </h3>
                     {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
                     <div className="article-card-footer">
@@ -311,7 +356,7 @@ export default async function HomePage() {
         )}
 
         {/* Editorial Beats Directory */}
-        {categories.length > 0 && (
+        {displayCategories.length > 0 && (
           <section className="editorial-beats-section" aria-label="Editorial Sections">
             <div className="section-header">
               <div className="section-header-left">
@@ -320,9 +365,9 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="beats-grid">
-              {categories.map((cat) => (
+              {displayCategories.map((cat) => (
                 <Link key={cat.id} href={`/category/${cat.slug}`} className="beat-card">
-                  <span className="beat-card-name">{cat.name}</span>
+                  <span className="beat-card-name">{cleanEditorialCategory(cat.name)}</span>
                   {cat.description && <span className="beat-card-desc">{cat.description}</span>}
                   <span className="beat-card-link">Browse Section &rarr;</span>
                 </Link>

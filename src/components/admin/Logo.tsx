@@ -1,25 +1,41 @@
-import React from 'react'
+'use client'
+
+import React, { useEffect } from 'react'
 
 export interface AdminLogoProps {
   className?: string
 }
 
 export const AdminLogo: React.FC<AdminLogoProps> = ({ className = '' }) => {
+  useEffect(() => {
+    try {
+      const cookies = document.cookie.split('; ')
+      const themeCookie = cookies.find((r) => r.startsWith('payload-theme='))
+      const val = themeCookie ? themeCookie.split('=')[1] : null
+      if (val === 'dark' || (!val && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      } else if (val === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light')
+      }
+    } catch {}
+  }, [])
+
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 280 48"
-      width="280"
-      height="48"
-      className={`graphic-logo foundry-admin-logo ${className}`.trim()}
-      role="img"
-      aria-label="Foundry Studio by DevCrafters"
-      style={{
-        display: 'block',
-        maxWidth: '100%',
-        height: 'auto',
-      }}
-    >
+    <>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 280 48"
+        width="280"
+        height="48"
+        className={`graphic-logo foundry-admin-logo ${className}`.trim()}
+        role="img"
+        aria-label="Foundry Studio by DevCrafters"
+        style={{
+          display: 'block',
+          maxWidth: '100%',
+          height: 'auto',
+        }}
+      >
       <title>Foundry Studio by DevCrafters</title>
       
       {/* DevCrafters Hexagonal Geometric Mark */}
@@ -52,7 +68,7 @@ export const AdminLogo: React.FC<AdminLogoProps> = ({ className = '' }) => {
         fontSize="17"
         fontWeight="800"
         letterSpacing="1.2"
-        fill="var(--theme-elevation-1000, #0F172A)"
+        fill="var(--admin-logo-text, var(--theme-elevation-1000, currentColor))"
       >
         FOUNDRY STUDIO
       </text>
@@ -70,6 +86,7 @@ export const AdminLogo: React.FC<AdminLogoProps> = ({ className = '' }) => {
         BY DEVCRAFTERS
       </text>
     </svg>
+    </>
   )
 }
 

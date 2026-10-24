@@ -17,6 +17,7 @@ import {
   formatDateShort,
   getDeskGreeting,
 } from '@/lib/editorial-date'
+import { cleanEditorialTitle } from '@/lib/editorial-format'
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -185,6 +186,7 @@ describe('FS-UI-007: Foundry Studio Editorial Newsroom Dashboard', () => {
         inReview: 1,
         scheduled: 1,
         published: 5,
+        velocity: [0, 1, 0, 2, 0, 1, 0],
       },
       reviewQueue: [
         {
@@ -344,6 +346,7 @@ describe('FS-UI-007: Foundry Studio Editorial Newsroom Dashboard', () => {
           inReview: 0,
           scheduled: 0,
           published: 0,
+          velocity: [0, 0, 0, 0, 0, 0, 0],
         },
         reviewQueue: [],
         drafts: [],
@@ -457,20 +460,20 @@ describe('FS-UI-007: Foundry Studio Editorial Newsroom Dashboard', () => {
       const authorHtml = renderToStaticMarkup(authorViewResult as React.ReactElement)
 
       // Author 1 MUST see their own dispatches
-      expect(authorHtml).toContain(`Alpha Draft Unique Title ${timestamp}`)
-      expect(authorHtml).toContain(`Alpha In-Review Unique Title ${timestamp}`)
+      expect(authorHtml).toContain(cleanEditorialTitle(alphaDraft.title))
+      expect(authorHtml).toContain(cleanEditorialTitle(alphaReview.title))
 
       // Author 1 MUST NOT see Author 2's draft or review submission!
-      expect(authorHtml).not.toContain(`Beta Secret Draft ${timestamp}`)
-      expect(authorHtml).not.toContain(`Beta Secret Review ${timestamp}`)
+      expect(authorHtml).not.toContain(cleanEditorialTitle(betaDraft.title))
+      expect(authorHtml).not.toContain(cleanEditorialTitle(betaReview.title))
 
       // Execute StudioDashboard server component for editor
       const editorViewResult = await StudioDashboard(createMockProps(testEditor))
       const editorHtml = renderToStaticMarkup(editorViewResult as React.ReactElement)
 
       // Editor CAN see both submissions in the review queue
-      expect(editorHtml).toContain(`Alpha In-Review Unique Title ${timestamp}`)
-      expect(editorHtml).toContain(`Beta Secret Review ${timestamp}`)
+      expect(editorHtml).toContain(cleanEditorialTitle(alphaReview.title))
+      expect(editorHtml).toContain(cleanEditorialTitle(betaReview.title))
 
       // Execute StudioDashboard server component for admin
       const adminViewResult = await StudioDashboard(createMockProps(testAdmin))

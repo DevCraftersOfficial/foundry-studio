@@ -10,6 +10,7 @@ import { getPublicPostWhere } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { CategoryNav } from '@/components/editorial/CategoryNav'
 import { Avatar } from '@/components/ui/Avatar'
+import { cleanEditorialTitle, cleanEditorialCategory } from '@/lib/editorial-format'
 
 type PageProps = {
   params: Promise<{
@@ -52,8 +53,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const category = categoryData.docs[0] as Category
-  const title = `${category.name} Section`
-  const description = category.description || `Read stories published in ${category.name} on Foundry Studio.`
+  const cleanName = cleanEditorialCategory(category.name)
+  const title = `${cleanName} Section`
+  const description = category.description || `Read stories published in ${cleanName} on Foundry Studio.`
 
   return {
     title,
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       canonical: `/category/${slug}`,
     },
     openGraph: {
-      title: `${category.name} Section | Foundry Studio`,
+      title: `${cleanName} Section | Foundry Studio`,
       description,
       type: 'website',
       url: `/category/${slug}`,
@@ -93,12 +95,13 @@ export default async function CategoryPage({ params }: PageProps) {
   }
 
   const category = categoryData.docs[0] as Category
+  const cleanName = cleanEditorialCategory(category.name)
 
   // 2. Fetch all categories for navigation
   const allCategoriesData = await payload.find({
     collection: 'categories',
     sort: 'name',
-    limit: 10,
+    limit: 20,
   })
   const allCategories = allCategoriesData.docs as Category[]
 
@@ -115,10 +118,19 @@ export default async function CategoryPage({ params }: PageProps) {
     },
     sort: '-publishedAt',
     depth: 2,
-    limit: 20,
+    limit: 30,
   })
 
   const posts = postsData.docs as Post[]
+
+  // Deduplicate identical test-generated posts by clean story title
+  const seenPostTitles = new Set<string>()
+  const displayPosts = posts.filter((p) => {
+    const clean = cleanEditorialTitle(p.title).toLowerCase()
+    if (seenPostTitles.has(clean)) return false
+    seenPostTitles.add(clean)
+    return true
+  })
 
   return (
     <div>
@@ -130,19 +142,19 @@ export default async function CategoryPage({ params }: PageProps) {
           <div className="category-header-meta">
             <span className="category-pill-active">Section Beat</span>
             <span className="category-count">
-              {posts.length} {posts.length === 1 ? 'Dispatch' : 'Dispatches'}
+              {displayPosts.length} {displayPosts.length === 1 ? 'Dispatch' : 'Dispatches'}
             </span>
           </div>
-          <h1 className="category-title">{category.name}</h1>
+          <h1 className="category-title">{cleanName}</h1>
           {category.description && (
             <p className="category-description">{category.description}</p>
           )}
         </header>
 
-        <section className="articles-section" aria-label={`Dispatches in ${category.name}`}>
-          {posts.length > 0 ? (
+        <section className="articles-section" aria-label={`Dispatches in ${cleanName}`}>
+          {displayPosts.length > 0 ? (
             <div className="article-grid">
-              {posts.map((post) => {
+              {displayPosts.map((post) => {
                 const author =
                   typeof post.author === 'object' && post.author ? (post.author as User) : null
                 const authorName = author?.name || 'Foundry Editorial'
@@ -150,7 +162,7 @@ export default async function CategoryPage({ params }: PageProps) {
 
                 return (
                   <article key={post.id} className="article-card">
-                    {post.featuredImage && typeof post.featuredImage === 'object' && (
+                    {post.featuredImage && typeof post.featuredImage === 'object' && (post.featuredImage as Media).url && (
                       <div className="article-card-image" style={{ position: 'relative' }}>
                         <Image
                           src={(post.featuredImage as Media).url || ''}
@@ -161,7 +173,7 @@ export default async function CategoryPage({ params }: PageProps) {
                       </div>
                     )}
                     <div className="article-card-meta">
-                      <span className="category-badge">{category.name}</span>
+                      <span className="category-badge">{cleanName}</span>
                       <time className="meta-time" dateTime={post.publishedAt || ''}>
                         {formatDate(post.publishedAt)}
                       </time>
@@ -173,7 +185,9 @@ export default async function CategoryPage({ params }: PageProps) {
                       </span>
                     </div>
                     <h2 className="article-card-title">
-                      <Link href={`/posts/${post.slug}`}>{post.title}</Link>
+                      <Link href={`/posts/${post.slug}`}>
+                        {cleanEditorialTitle(post.title)}
+                      </Link>
                     </h2>
                     {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
                     <div className="article-card-footer">
@@ -195,9 +209,9 @@ export default async function CategoryPage({ params }: PageProps) {
             </div>
           ) : (
             <div className="empty-state">
-              <h2 className="empty-state-title">No Dispatches in {category.name}</h2>
+              <h2 className="empty-state-title">No Dispatches Filed in {cleanName}</h2>
               <p className="empty-state-text">
-                There are currently no live dispatches under this section. Explore our other editorial beats.
+                This beat currently has no published articles. Dispatches submitted and approved for release will appear here.
               </p>
               <Link href="/" className="empty-state-link">
                 &larr; Return to Front Page

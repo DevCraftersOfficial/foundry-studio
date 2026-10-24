@@ -28,7 +28,6 @@ export const StudioHeader: React.FC<ServerProps> = async (props) => {
         {/* Left: Desk Identifier */}
         <div className="studio-header-left">
           <div className="studio-header-desk-tag">
-            <span className="studio-header-pulse" aria-hidden="true" />
             <span className="studio-header-desk-title">EDITORIAL WORKSPACE</span>
           </div>
           <span className="studio-header-divider" aria-hidden="true">|</span>
@@ -39,7 +38,7 @@ export const StudioHeader: React.FC<ServerProps> = async (props) => {
         <div className="studio-header-center">
           {isDraftMode ? (
             <div className="studio-header-draft-banner" role="status" aria-live="polite">
-              <span className="studio-draft-badge">DRAFT MODE ACTIVE</span>
+              <span className="studio-draft-badge">DRAFT PREVIEW</span>
               <span className="studio-draft-desc">Previewing draft dispatches</span>
               <Link
                 href="/api/exit-preview"
@@ -52,7 +51,6 @@ export const StudioHeader: React.FC<ServerProps> = async (props) => {
             </div>
           ) : (
             <div className="studio-header-live-badge" title="Public reader serves published records only">
-              <span className="studio-live-dot" aria-hidden="true" />
               <span>LIVE PUBLISHING</span>
             </div>
           )}

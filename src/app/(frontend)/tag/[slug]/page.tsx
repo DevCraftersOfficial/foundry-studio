@@ -10,6 +10,11 @@ import { getPublicPostWhere } from '@/lib/publishing'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { CategoryNav } from '@/components/editorial/CategoryNav'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  cleanEditorialTitle,
+  cleanEditorialCategory,
+  cleanEditorialTag,
+} from '@/lib/editorial-format'
 
 type PageProps = {
   params: Promise<{
@@ -49,8 +54,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const tag = tagData.docs[0] as Tag
-  const title = `#${tag.name} Topic Archive | Foundry Studio`
-  const description = `Read all published dispatches and analyses filed under topic #${tag.name} on Foundry Studio.`
+  const cleanTagName = cleanEditorialTag(tag.name)
+  const title = `#${cleanTagName} Topic Archive | Foundry Studio`
+  const description = `Read all published dispatches and analyses filed under topic #${cleanTagName} on Foundry Studio.`
 
   return {
     title,
@@ -90,6 +96,7 @@ export default async function TagArchivePage({ params }: PageProps) {
   }
 
   const tag = tagData.docs[0] as Tag
+  const cleanTagName = cleanEditorialTag(tag.name)
 
   // 2. Fetch published posts filed under this tag
   const postsData = await payload.find({
@@ -112,11 +119,20 @@ export default async function TagArchivePage({ params }: PageProps) {
   const categoriesData = await payload.find({
     collection: 'categories',
     sort: 'name',
-    limit: 10,
+    limit: 20,
   })
 
   const posts = postsData.docs as Post[]
   const categories = categoriesData.docs as Category[]
+
+  // Deduplicate identical test-generated posts
+  const seenTitles = new Set<string>()
+  const displayPosts = posts.filter((p) => {
+    const clean = cleanEditorialTitle(p.title).toLowerCase()
+    if (seenTitles.has(clean)) return false
+    seenTitles.add(clean)
+    return true
+  })
 
   return (
     <div>
@@ -128,23 +144,23 @@ export default async function TagArchivePage({ params }: PageProps) {
           <div className="category-header-meta">
             <span className="category-pill-active">Topic Archive</span>
             <span className="category-count">
-              {posts.length} {posts.length === 1 ? 'Dispatch' : 'Dispatches'}
+              {displayPosts.length} {displayPosts.length === 1 ? 'Dispatch' : 'Dispatches'}
             </span>
           </div>
-          <h1 className="category-title">#{tag.name}</h1>
+          <h1 className="category-title">#{cleanTagName}</h1>
           <p className="category-description">
-            All editorial investigations, reporting, and critical commentary categorized under topic #{tag.name}.
+            All editorial investigations, reporting, and critical commentary categorized under topic #{cleanTagName}.
           </p>
         </header>
 
         {/* Tag Dispatches Section */}
-        <section className="articles-section" aria-label={`Dispatches filed under #${tag.name}`}>
-          {posts.length > 0 ? (
+        <section className="articles-section" aria-label={`Dispatches filed under #${cleanTagName}`}>
+          {displayPosts.length > 0 ? (
             <div className="article-grid">
-              {posts.map((post) => {
+              {displayPosts.map((post) => {
                 const category =
                   post.categories && post.categories.length > 0 && typeof post.categories[0] === 'object'
-                    ? (post.categories[0] as Category).name
+                    ? cleanEditorialCategory((post.categories[0] as Category).name)
                     : null
 
                 const author = typeof post.author === 'object' && post.author ? (post.author as User) : null
@@ -153,7 +169,7 @@ export default async function TagArchivePage({ params }: PageProps) {
 
                 return (
                   <article key={post.id} className="article-card">
-                    {post.featuredImage && typeof post.featuredImage === 'object' && (
+                    {post.featuredImage && typeof post.featuredImage === 'object' && (post.featuredImage as Media).url && (
                       <div className="article-card-image" style={{ position: 'relative' }}>
                         <Image
                           src={(post.featuredImage as Media).url || ''}
@@ -176,7 +192,9 @@ export default async function TagArchivePage({ params }: PageProps) {
                       </span>
                     </div>
                     <h3 className="article-card-title">
-                      <Link href={`/posts/${post.slug}`}>{post.title}</Link>
+                      <Link href={`/posts/${post.slug}`}>
+                        {cleanEditorialTitle(post.title)}
+                      </Link>
                     </h3>
                     {post.excerpt && <p className="article-card-excerpt">{post.excerpt}</p>}
                     <div className="article-card-footer">
@@ -188,7 +206,9 @@ export default async function TagArchivePage({ params }: PageProps) {
                           <span>By {authorName}</span>
                         )}
                       </span>
-                      <span>Read Story &rarr;</span>
+                      <Link href={`/posts/${post.slug}`} className="article-card-cta">
+                        Read Story &rarr;
+                      </Link>
                     </div>
                   </article>
                 )

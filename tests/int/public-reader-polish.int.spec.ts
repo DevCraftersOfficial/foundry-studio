@@ -7,6 +7,7 @@ import type { Post, User, Category } from '@/payload-types'
 import { calculateReadingTime, extractTextFromLexical } from '@/lib/reading-time'
 import { CategoryNav } from '@/components/editorial/CategoryNav'
 import { getPublicPostWhere } from '@/lib/publishing'
+import { cleanEditorialCategory } from '@/lib/editorial-format'
 
 let payload: Payload
 let testAuthor: User
@@ -270,8 +271,8 @@ describe('FS-UI-003: Public Reader Polish & Related Stories Isolation', () => {
       expect(htmlFrontPage).toContain('aria-current="page"')
       expect(htmlFrontPage).toContain('category-nav-link--active')
       expect(htmlFrontPage).toContain('Front Page')
-      expect(htmlFrontPage).toContain(techCategory.name)
-      expect(htmlFrontPage).toContain(designCategory.name)
+      expect(htmlFrontPage).toContain(cleanEditorialCategory(techCategory.name))
+      expect(htmlFrontPage).toContain(cleanEditorialCategory(designCategory.name))
 
       // Active category section
       const htmlTech = renderToStaticMarkup(
