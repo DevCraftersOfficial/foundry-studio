@@ -35,6 +35,14 @@ export const metadata: Metadata = {
   },
   description: 'An authoritative content publishing platform engineered for thoughtful editorial journalism and modular publishing.',
   metadataBase: new URL(getSiteUrl()),
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '32x32' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
+  },
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {

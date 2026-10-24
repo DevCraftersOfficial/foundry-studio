@@ -33,95 +33,114 @@ function formatDate(dateStr?: string | null): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
 
-  const categoryData = await payload.find({
-    collection: 'categories',
-    where: { slug: { equals: slug } },
-    limit: 1,
-  })
+    const categoryData = await payload.find({
+      collection: 'categories',
+      where: { slug: { equals: slug } },
+      limit: 1,
+    })
 
-  if (categoryData.docs.length === 0) {
-    return {
-      title: 'Category Not Found',
-      robots: {
-        index: false,
-        follow: false,
-      },
+    if (categoryData.docs.length === 0) {
+      return {
+        title: 'Category Not Found',
+        robots: {
+          index: false,
+          follow: false,
+        },
+      }
     }
-  }
 
-  const category = categoryData.docs[0] as Category
-  const cleanName = cleanEditorialCategory(category.name)
-  const title = `${cleanName} Section`
-  const description = category.description || `Read stories published in ${cleanName} on Foundry Studio.`
+    const category = categoryData.docs[0] as Category
+    const cleanName = cleanEditorialCategory(category.name)
+    const title = `${cleanName} Section`
+    const description = category.description || `Read stories published in ${cleanName} on Foundry Studio.`
 
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/category/${slug}`,
-    },
-    openGraph: {
-      title: `${cleanName} Section | Foundry Studio`,
-      description,
-      type: 'website',
-      url: `/category/${slug}`,
-    },
-    twitter: {
-      card: 'summary',
+    return {
       title,
       description,
-    },
+      alternates: {
+        canonical: `/category/${slug}`,
+      },
+      openGraph: {
+        title: `${cleanName} Section | Foundry Studio`,
+        description,
+        type: 'website',
+        url: `/category/${slug}`,
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+      },
+    }
+  } catch {
+    return {
+      title: 'Category Not Found',
+    }
   }
 }
 
 export default async function CategoryPage({ params }: PageProps) {
   const { slug } = await params
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const now = new Date().toISOString()
+  let category: Category | null = null
+  let allCategories: Category[] = []
+  let posts: Post[] = []
 
-  // 1. Fetch category
-  const categoryData = await payload.find({
-    collection: 'categories',
-    where: { slug: { equals: slug } },
-    limit: 1,
-  })
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
+    const now = new Date().toISOString()
 
-  if (categoryData.docs.length === 0) {
+    // 1. Fetch category
+    const categoryData = await payload.find({
+      collection: 'categories',
+      where: { slug: { equals: slug } },
+      limit: 1,
+    })
+
+    if (categoryData.docs.length === 0) {
+      notFound()
+    }
+
+    category = categoryData.docs[0] as Category
+
+    // 2. Fetch all categories for navigation
+    const allCategoriesData = await payload.find({
+      collection: 'categories',
+      sort: 'name',
+      limit: 20,
+    })
+    allCategories = (allCategoriesData.docs || []) as Category[]
+
+    // 3. Fetch all published posts in this category using canonical filter
+    const postsData = await payload.find({
+      collection: 'posts',
+      where: {
+        and: [
+          getPublicPostWhere(now),
+          {
+            categories: { contains: category.id },
+          },
+        ],
+      },
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 30,
+    })
+
+    posts = (postsData.docs || []) as Post[]
+  } catch {
     notFound()
   }
 
-  const category = categoryData.docs[0] as Category
+  if (!category) {
+    notFound()
+  }
+
   const cleanName = cleanEditorialCategory(category.name)
-
-  // 2. Fetch all categories for navigation
-  const allCategoriesData = await payload.find({
-    collection: 'categories',
-    sort: 'name',
-    limit: 20,
-  })
-  const allCategories = allCategoriesData.docs as Category[]
-
-  // 3. Fetch all published posts in this category using canonical filter
-  const postsData = await payload.find({
-    collection: 'posts',
-    where: {
-      and: [
-        getPublicPostWhere(now),
-        {
-          categories: { contains: category.id },
-        },
-      ],
-    },
-    sort: '-publishedAt',
-    depth: 2,
-    limit: 30,
-  })
-
-  const posts = postsData.docs as Post[]
 
   // Deduplicate identical test-generated posts by clean story title
   const seenPostTitles = new Set<string>()

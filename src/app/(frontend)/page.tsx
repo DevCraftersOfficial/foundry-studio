@@ -45,28 +45,35 @@ function formatDate(dateStr?: string | null): string {
 }
 
 export default async function HomePage() {
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const now = new Date().toISOString()
+  let posts: Post[] = []
+  let categories: Category[] = []
 
-  // 1. Fetch published posts using canonical eligibility filter
-  const postsData = await payload.find({
-    collection: 'posts',
-    where: getPublicPostWhere(now),
-    sort: '-publishedAt',
-    depth: 2,
-    limit: 20,
-  })
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
+    const now = new Date().toISOString()
 
-  // 2. Fetch categories for navigation and beats section
-  const categoriesData = await payload.find({
-    collection: 'categories',
-    sort: 'name',
-    limit: 20,
-  })
+    // 1. Fetch published posts using canonical eligibility filter
+    const postsData = await payload.find({
+      collection: 'posts',
+      where: getPublicPostWhere(now),
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 20,
+    })
 
-  const posts = postsData.docs as Post[]
-  const categories = categoriesData.docs as Category[]
+    // 2. Fetch categories for navigation and beats section
+    const categoriesData = await payload.find({
+      collection: 'categories',
+      sort: 'name',
+      limit: 20,
+    })
+
+    posts = (postsData.docs || []) as Post[]
+    categories = (categoriesData.docs || []) as Category[]
+  } catch (err) {
+    console.error('[HomePage] Server Component database fetch caught error:', err)
+  }
 
   const featuredPost = posts.length > 0 ? posts[0] : null
 

@@ -98,30 +98,37 @@ export default async function AuthorArchivePage({ params }: PageProps) {
     notFound()
   }
 
-  // Strictly query ONLY eligible published content authored by this user
-  const postsData = await payload.find({
-    collection: 'posts',
-    where: {
-      and: [
-        getPublicPostWhere(now),
-        {
-          author: { equals: author.id },
-        },
-      ],
-    },
-    sort: '-publishedAt',
-    depth: 2,
-    limit: 30,
-  })
+  let posts: Post[] = []
+  let categories: Category[] = []
 
-  const categoriesData = await payload.find({
-    collection: 'categories',
-    sort: 'name',
-    limit: 10,
-  })
+  try {
+    // Strictly query ONLY eligible published content authored by this user
+    const postsData = await payload.find({
+      collection: 'posts',
+      where: {
+        and: [
+          getPublicPostWhere(now),
+          {
+            author: { equals: author.id },
+          },
+        ],
+      },
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 30,
+    })
 
-  const posts = postsData.docs as Post[]
-  const categories = categoriesData.docs as Category[]
+    const categoriesData = await payload.find({
+      collection: 'categories',
+      sort: 'name',
+      limit: 10,
+    })
+
+    posts = (postsData.docs || []) as Post[]
+    categories = (categoriesData.docs || []) as Category[]
+  } catch (err) {
+    console.error('[AuthorArchivePage] Failed to fetch author posts/categories:', err)
+  }
 
   return (
     <div>

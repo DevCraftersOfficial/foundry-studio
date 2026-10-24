@@ -42,11 +42,12 @@ export async function getPost(
   isDraftMode = false,
   overrideHeaders?: Headers,
 ): Promise<Post | null> {
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const now = new Date().toISOString()
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
+    const now = new Date().toISOString()
 
-  // If in draft mode, verify the authenticated session and role authorization:
+    // If in draft mode, verify the authenticated session and role authorization:
   // Draft Mode cookies alone CANNOT grant access to unauthorized drafts.
   if (isDraftMode) {
     let requestHeaders: Headers
@@ -126,7 +127,11 @@ export async function getPost(
     limit: 1,
   })
 
-  return (result.docs[0] as Post) || null
+    return (result.docs[0] as Post) || null
+  } catch (err) {
+    console.error('[getPost] caught database fetch error:', err)
+    return null
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

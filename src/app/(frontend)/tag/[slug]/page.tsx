@@ -37,93 +37,112 @@ function formatDate(dateStr?: string | null): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
 
-  const tagData = await payload.find({
-    collection: 'tags',
-    where: { slug: { equals: slug } },
-    limit: 1,
-  })
+    const tagData = await payload.find({
+      collection: 'tags',
+      where: { slug: { equals: slug } },
+      limit: 1,
+    })
 
-  if (tagData.docs.length === 0) {
+    if (tagData.docs.length === 0) {
+      return {
+        title: 'Topic Not Found',
+        robots: { index: false, follow: false },
+      }
+    }
+
+    const tag = tagData.docs[0] as Tag
+    const cleanTagName = cleanEditorialTag(tag.name)
+    const title = `#${cleanTagName} Topic Archive | Foundry Studio`
+    const description = `Read all published dispatches and analyses filed under topic #${cleanTagName} on Foundry Studio.`
+
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: `/tag/${slug}`,
+      },
+      openGraph: {
+        title: `#${cleanTagName} | Foundry Studio`,
+        description,
+        type: 'website',
+        url: `/tag/${slug}`,
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+      },
+    }
+  } catch {
     return {
       title: 'Topic Not Found',
-      robots: { index: false, follow: false },
     }
-  }
-
-  const tag = tagData.docs[0] as Tag
-  const cleanTagName = cleanEditorialTag(tag.name)
-  const title = `#${cleanTagName} Topic Archive | Foundry Studio`
-  const description = `Read all published dispatches and analyses filed under topic #${cleanTagName} on Foundry Studio.`
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/tag/${slug}`,
-    },
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      url: `/tag/${slug}`,
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-    },
   }
 }
 
 export default async function TagArchivePage({ params }: PageProps) {
   const { slug } = await params
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const now = new Date().toISOString()
+  let tag: Tag | null = null
+  let posts: Post[] = []
+  let categories: Category[] = []
 
-  // 1. Fetch Tag
-  const tagData = await payload.find({
-    collection: 'tags',
-    where: { slug: { equals: slug } },
-    limit: 1,
-  })
+  try {
+    const payloadConfig = await config
+    const payload = await getPayload({ config: payloadConfig })
+    const now = new Date().toISOString()
 
-  if (tagData.docs.length === 0) {
+    // 1. Fetch Tag
+    const tagData = await payload.find({
+      collection: 'tags',
+      where: { slug: { equals: slug } },
+      limit: 1,
+    })
+
+    if (tagData.docs.length === 0) {
+      notFound()
+    }
+
+    tag = tagData.docs[0] as Tag
+
+    // 2. Fetch published posts filed under this tag
+    const postsData = await payload.find({
+      collection: 'posts',
+      where: {
+        and: [
+          getPublicPostWhere(now),
+          {
+            tags: {
+              contains: tag.id,
+            },
+          },
+        ],
+      },
+      sort: '-publishedAt',
+      depth: 2,
+      limit: 30,
+    })
+
+    const categoriesData = await payload.find({
+      collection: 'categories',
+      sort: 'name',
+      limit: 20,
+    })
+
+    posts = (postsData.docs || []) as Post[]
+    categories = (categoriesData.docs || []) as Category[]
+  } catch {
     notFound()
   }
 
-  const tag = tagData.docs[0] as Tag
+  if (!tag) {
+    notFound()
+  }
+
   const cleanTagName = cleanEditorialTag(tag.name)
-
-  // 2. Fetch published posts filed under this tag
-  const postsData = await payload.find({
-    collection: 'posts',
-    where: {
-      and: [
-        getPublicPostWhere(now),
-        {
-          tags: {
-            contains: tag.id,
-          },
-        },
-      ],
-    },
-    sort: '-publishedAt',
-    depth: 2,
-    limit: 30,
-  })
-
-  const categoriesData = await payload.find({
-    collection: 'categories',
-    sort: 'name',
-    limit: 20,
-  })
-
-  const posts = postsData.docs as Post[]
-  const categories = categoriesData.docs as Category[]
 
   // Deduplicate identical test-generated posts
   const seenTitles = new Set<string>()
